@@ -108,7 +108,7 @@ BOOL CBallPlateDlg::OnInitDialog()
 	// TODO: 在此添加额外的初始化代码
 	m_Image.SetWindowPos(NULL, 0, 0, 768, 576, SWP_NOMOVE);
 
-	//img_raw = cv::imread("../picture/pic2.png", 0);
+	//img_raw = cv::imread("../picture/pic1.png", 0);
 	//std::vector<cv::Vec3f> circles;
 	//cv::HoughCircles(img_raw, circles, cv::HOUGH_GRADIENT, 1, 100, 100, 100, 0, 0);
 
