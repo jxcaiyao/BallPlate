@@ -58,7 +58,7 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 				1,		1,		1,		1,		1,		1,		1,		1,		1;
 
 	Eigen::MatrixXd pnt_tru(3, circles_cali.size());
-	for (int i = 0; i < circles_cali.size();i++) {
+	for (int i = 0; i < (int)circles_cali.size();i++) {
 		pnt_tru(0, i) = (double)circles_cali[i][0];
 		pnt_tru(1, i) = (double)circles_cali[i][1];
 		pnt_tru(2, i) = 1;
@@ -211,14 +211,14 @@ int MyCamera::getCaliPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &circles, doubl
 		cv::GaussianBlur(img_proc, img_proc, cv::Size(3, 3), 0, 0);
 		cv::HoughCircles(img_proc, circles, cv::HOUGH_GRADIENT, 1, mindist, param1, param2, minRadius, maxRadius);
 
-		if (circles.size() >= minCircles && circles.size() <= maxCircles) {
+		if ((int)circles.size() >= minCircles && (int)circles.size() <= maxCircles) {
 			break;
 		}
-		else if (circles.size() < minCircles) {
+		else if ((int)circles.size() < minCircles) {
 			param2 /= 1.1;
 			printf("Not enough point detected! param2 = %.1f\n", param2);
 		}
-		else if (circles.size() > maxCircles) {
+		else if ((int)circles.size() > maxCircles) {
 			param2 *= 1.05;
 			printf("Too many points detected! param2 = %.1f\n", param2);
 		}
@@ -256,7 +256,7 @@ int MyCamera::getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, doub
 		else if (ball_pos.size() == 1) {
 			ball_pos[0][0] *= k;
 			ball_pos[0][1] *= k;
-			ball_pos[0][2] = 1.5*k*ball_pos[0][2] + k;
+			ball_pos[0][2] = (float)(1.5*k*ball_pos[0][2] + k);
 			break;
 		}
 		else {

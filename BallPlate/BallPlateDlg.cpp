@@ -230,9 +230,9 @@ void CBallPlateDlg::OnBnClickedButtonCaliImage()
 	// TODO: 在此添加控件通知处理程序代码
 
 	//初始化标定
-	cv::namedWindow("123");
-	cv::imshow("123", img_raw);
-	cv::waitKey(0);
+	//cv::namedWindow("123");
+	//cv::imshow("123", img_raw);
+	//cv::waitKey(0);
 	m_MyCamera.caliImage(img_raw);
 }
 
