@@ -60,12 +60,17 @@ CBallPlateDlg::CBallPlateDlg(CWnd* pParent /*=nullptr*/)
 void CBallPlateDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_IMAGE, m_Image);
 }
 
 BEGIN_MESSAGE_MAP(CBallPlateDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_BN_CLICKED(IDC_BUTTON_GRAB_IMAGE, &CBallPlateDlg::OnBnClickedButtonGrabImage)
+	ON_BN_CLICKED(IDC_BUTTON_CALI_IMAGE, &CBallPlateDlg::OnBnClickedButtonCaliImage)
+	ON_BN_CLICKED(IDC_BUTTON_BALL_POS, &CBallPlateDlg::OnBnClickedButtonBallPos)
+	ON_BN_CLICKED(IDC_BUTTON_CONTINUE, &CBallPlateDlg::OnBnClickedButtonContinue)
 END_MESSAGE_MAP()
 
 
@@ -101,9 +106,52 @@ BOOL CBallPlateDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
+	m_Image.SetWindowPos(NULL, 0, 0, 768, 576, SWP_NOMOVE);
+
+	//img_raw = cv::imread("../picture/pic2.png", 0);
+	//std::vector<cv::Vec3f> circles;
+	//cv::HoughCircles(img_raw, circles, cv::HOUGH_GRADIENT, 1, 100, 100, 100, 0, 0);
+
+	m_MilVision.InitialVision();
+
+	//显示图像
+	m_MilVision.GrabContinuous(m_Image);
 
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
+}
+
+
+int CBallPlateDlg::Array2Mat(BYTE* array, cv::Mat& img, int row, int col) {
+
+	img = cv::Mat(row, col, CV_8UC1, (BYTE*)array);
+
+	return 0;
+}
+
+int CBallPlateDlg::Mat2CImage(cv::Mat* mat, CImage& img) {
+	if (!mat || mat->empty())
+		return -1;
+	int nBPP = mat->channels() * 8;
+	img.Create(mat->cols, mat->rows, nBPP);
+	if (nBPP == 8)
+	{
+		static RGBQUAD pRGB[256];
+		for (int i = 0; i < 256; i++)
+			pRGB[i].rgbBlue = pRGB[i].rgbGreen = pRGB[i].rgbRed = i;
+		img.SetColorTable(0, 256, pRGB);
+	}
+	uchar* psrc = mat->data;
+	uchar* pdst = (uchar*)img.GetBits();
+	int imgPitch = img.GetPitch();
+	for (int y = 0; y < mat->rows; y++)
+	{
+		memcpy(pdst, psrc, mat->cols * mat->channels());//mat->step is incorrect for those images created by roi (sub-images!)
+		psrc += mat->step;
+		pdst += imgPitch;
+	}
+
+	return 0;
 }
 
 void CBallPlateDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -125,6 +173,17 @@ void CBallPlateDlg::OnSysCommand(UINT nID, LPARAM lParam)
 
 void CBallPlateDlg::OnPaint()
 {
+	CImage cImage;
+	if (Mat2CImage(&img_disp, cImage)) {
+		//MessageBox("Mat2CImage Wrong!");
+	}
+	else {
+		HDC hDc = m_Image.GetDC()->m_hDC;
+		CRect rect;
+		m_Image.GetWindowRect(&rect);
+		cImage.Draw(hDc, 0, 0, img_disp.cols, img_disp.rows, 0, 0, img_disp.cols, img_disp.rows);
+	}
+
 	if (IsIconic())
 	{
 		CPaintDC dc(this); // 用于绘制的设备上下文
@@ -146,6 +205,7 @@ void CBallPlateDlg::OnPaint()
 	{
 		CDialogEx::OnPaint();
 	}
+
 }
 
 //当用户拖动最小化窗口时系统调用此函数取得光标
@@ -155,3 +215,43 @@ HCURSOR CBallPlateDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+void CBallPlateDlg::OnBnClickedButtonGrabImage()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	m_MilVision.ImageFrameGrab();
+	Array2Mat(m_MilVision.m_pDataArray, img_raw, 576, 768);
+	img_disp = img_raw.clone();
+	OnPaint();
+}
+
+
+void CBallPlateDlg::OnBnClickedButtonCaliImage()
+{
+	// TODO: 在此添加控件通知处理程序代码
+
+	//初始化标定
+	cv::namedWindow("123");
+	cv::imshow("123", img_raw);
+	cv::waitKey(0);
+	m_MyCamera.caliImage(img_raw);
+}
+
+
+void CBallPlateDlg::OnBnClickedButtonBallPos()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	m_MyCamera.getBallPosition(m_BallPos, img_raw);
+	m_MyCamera.drawPoint(img_raw, img_proc, m_BallPos, cv::Scalar(0));
+	img_disp = img_proc.clone();
+	OnPaint();
+}
+
+
+void CBallPlateDlg::OnBnClickedButtonContinue()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	img_disp = cv::Mat();
+	OnPaint();
+	m_MilVision.GrabContinuous(m_Image);
+
+}

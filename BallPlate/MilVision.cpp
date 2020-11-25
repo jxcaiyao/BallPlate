@@ -82,6 +82,15 @@ void CMilVision::ImageFrameGrab()
 		MbufInquire(MilImage,M_HOST_ADDRESS,&m_pDataArray);
 }
 
+void CMilVision::MiLDestroy()
+{
+	//	free(m_pDataArray);
+	//	free(m_pProcDataArray);
+	MdigHalt(MilDigitizer);
+	MappFreeDefault(MilApplication, MilSystem, MilDisplay,
+		MilDigitizer, MilImage);
+}
+
 BOOL CMilVision::BivalueCentroid(int *xPos, int *yPos,CRect rect)
 {
 	unsigned int xSum, ySum,potNum;
@@ -125,15 +134,6 @@ BOOL CMilVision::BivalueCentroid(int *xPos, int *yPos,CRect rect)
 		*yPos = ySum/potNum;
 	}
 	return TRUE;	
-}
-
-void CMilVision::MiLDestroy()
-{
-//	free(m_pDataArray);
-//	free(m_pProcDataArray);
-	MdigHalt(MilDigitizer);
-	MappFreeDefault(MilApplication, MilSystem, MilDisplay,
-								  MilDigitizer, MilImage);
 }
 
 /* obtain centroid directly from gray image */

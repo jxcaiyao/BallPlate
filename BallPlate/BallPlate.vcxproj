@@ -77,7 +77,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>%MIL_HOME%\Include;%MIL_HOME%\Include\MilDyn;%OPENCV_HOME%\include;%EIGEN_HOME%;$(IncludePath)</IncludePath>
-    <LibraryPath>%MIL_HOME%\LIB;%OPENCV_HOME%\x86\vc15\lib;%BALLPLATE_HOME%\BallPlate;$(LibraryPath)</LibraryPath>
+    <LibraryPath>%MIL_HOME%\LIB;%OPENCV_HOME%\x86\vc16\lib;%BALLPLATE_HOME%\BallPlate;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -99,6 +99,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <AdditionalDependencies>Mil.lib;opencv_world411d.lib;gts.lib</AdditionalDependencies>
+      <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -190,6 +191,7 @@
     <ClInclude Include="BallPlateDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="MilVision.h" />
+    <ClInclude Include="MyCamera.h" />
     <ClInclude Include="MyView.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="RectTracker2.h" />
@@ -201,6 +203,7 @@
     <ClCompile Include="BallPlate.cpp" />
     <ClCompile Include="BallPlateDlg.cpp" />
     <ClCompile Include="MilVision.cpp" />
+    <ClCompile Include="MyCamera.cpp" />
     <ClCompile Include="MyView.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
