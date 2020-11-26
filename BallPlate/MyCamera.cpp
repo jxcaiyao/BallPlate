@@ -111,7 +111,7 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 
 	this->center.x = cvRound(this->trans(0, 2));
 	this->center.y = cvRound(this->trans(1, 2));
-	this->radius = cvRound((this->trans.block(0, 0, 2, 2) * Eigen::Vector2d(140, 0)).norm());
+	this->radius = cvRound((this->trans.block(0, 0, 2, 2) * Eigen::Vector2d(150, 0)).norm());
 	this->mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
 	cv::circle(this->mask, this->center, this->radius, cv::Scalar(255), -1);
 
@@ -158,6 +158,12 @@ int MyCamera::drawPoint(cv::Mat img_raw, cv::Mat &img_disp, Eigen::Vector2d p_wo
 	center.x = cvRound(this->trans(0, 0) * p_world(0) + this->trans(0, 1)*p_world(1) + this->trans(0, 2));
 	center.y = cvRound(this->trans(1, 0) * p_world(0) + this->trans(1, 1)*p_world(1) + this->trans(1, 2));
 	cv::circle(img_disp, center, radius, color, thickness);
+
+	return 0;
+}
+
+int MyCamera::getMask(cv::Mat& mask) {
+	mask = this->mask.clone();
 
 	return 0;
 }

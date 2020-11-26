@@ -14,6 +14,27 @@
 #endif
 
 
+inline UINT64 CBallPlateDlg::GetCycleCount()
+{
+	__asm
+	{
+		_emit 0x0F;
+		_emit 0x31;
+	}
+}
+
+void CBallPlateDlg::GetCPUFrequency() 
+{
+	UINT64 start, end;
+
+	start = GetCycleCount();
+	end = GetCycleCount() - start;
+	start = GetCycleCount();
+
+	Sleep(1000);
+	m_CPUFrequency = (double)(GetCycleCount() - start - end);
+}
+
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
 class CAboutDlg : public CDialogEx
@@ -53,14 +74,22 @@ END_MESSAGE_MAP()
 
 CBallPlateDlg::CBallPlateDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_BALLPLATE_DIALOG, pParent)
+	, m_BallXPosText(_T(""))
+	, m_BallYPosText(_T(""))
+	, m_TimeText(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+	m_CPUFrequency = 3600000000;
+	m_array = { 0 };
 }
 
 void CBallPlateDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_IMAGE, m_Image);
+	DDX_Text(pDX, IDC_BALL_POSX, m_BallXPosText);
+	DDX_Text(pDX, IDC_BALL_POSY, m_BallYPosText);
+	DDX_Text(pDX, IDC_TIME_TEXT, m_TimeText);
 }
 
 BEGIN_MESSAGE_MAP(CBallPlateDlg, CDialogEx)
@@ -71,6 +100,8 @@ BEGIN_MESSAGE_MAP(CBallPlateDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_CALI_IMAGE, &CBallPlateDlg::OnBnClickedButtonCaliImage)
 	ON_BN_CLICKED(IDC_BUTTON_BALL_POS, &CBallPlateDlg::OnBnClickedButtonBallPos)
 	ON_BN_CLICKED(IDC_BUTTON_CONTINUE, &CBallPlateDlg::OnBnClickedButtonContinue)
+	ON_BN_CLICKED(IDC_BUTTON_CONTINUE_POSITION, &CBallPlateDlg::OnBnClickedButtonContinuePosition)
+	ON_WM_TIMER()
 END_MESSAGE_MAP()
 
 
@@ -107,6 +138,7 @@ BOOL CBallPlateDlg::OnInitDialog()
 
 	// TODO: 在此添加额外的初始化代码
 	m_Image.SetWindowPos(NULL, 0, 0, 768, 576, SWP_NOMOVE);
+	GetCPUFrequency();				//得到CPU频率，方便计算精确运行时间
 
 	//img_raw = cv::imread("../picture/pic1.png", 0);
 	//std::vector<cv::Vec3f> circles;
@@ -115,7 +147,7 @@ BOOL CBallPlateDlg::OnInitDialog()
 	m_MilVision.InitialVision();
 
 	//显示图像
-	m_MilVision.GrabContinuous(m_Image);
+	//m_MilVision.GrabContinuous(m_Image);
 
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -224,24 +256,40 @@ void CBallPlateDlg::OnBnClickedButtonGrabImage()
 	OnPaint();
 }
 
-
 void CBallPlateDlg::OnBnClickedButtonCaliImage()
 {
 	// TODO: 在此添加控件通知处理程序代码
 
 	//初始化标定
-	//cv::namedWindow("123");
-	//cv::imshow("123", img_raw);
-	//cv::waitKey(0);
+	UINT64 t1, t2;
+	CString str;
+	t1 = GetCycleCount();
 	m_MyCamera.caliImage(img_raw);
+	m_MyCamera.getMask(mask);
+	t2 = GetCycleCount();
+	str.Format(TEXT("use time: %fms"), (t2 - t1) * 1000.0 / m_CPUFrequency);
+	MessageBox(str);
 }
 
 
 void CBallPlateDlg::OnBnClickedButtonBallPos()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	//UINT64 t1, t2;
+	//CString str;
+	//t1 = GetCycleCount();
 	m_MyCamera.getBallPosition(m_BallPos, img_raw);
 	m_MyCamera.drawPoint(img_raw, img_proc, m_BallPos, cv::Scalar(0));
+	//t2 = GetCycleCount();
+	//str.Format(TEXT("use time: %fms"), (t2 - t1) * 1000.0 / m_CPUFrequency);
+	//MessageBox(str);
+
+	//double x, y;
+	//x = m_BallPos(0);
+	//y = m_BallPos(1);
+	//str.Format(TEXT("x = %.1fmm, y = %.1fmm"), x, y);
+	//MessageBox(str);
+	img_proc.copyTo(img_proc, mask);
 	img_disp = img_proc.clone();
 	OnPaint();
 }
@@ -251,7 +299,46 @@ void CBallPlateDlg::OnBnClickedButtonContinue()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	img_disp = cv::Mat();
+	KillTimer(1);
 	OnPaint();
-	m_MilVision.GrabContinuous(m_Image);
+	//m_MilVision.GrabContinuous(m_Image);
 
+}
+
+
+void CBallPlateDlg::OnBnClickedButtonContinuePosition()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	SetTimer(1, 1, NULL);
+}
+
+int __stdcall ThreadGetFrame(void* pM) {
+
+	return 0;
+}
+
+void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	UINT64 t1, t2;
+	t1 = GetCycleCount();
+	m_MilVision.ImageFrameGrab();
+	Array2Mat(m_MilVision.m_pDataArray, img_raw, 576, 768);
+	if (m_MyCamera.getBallPosition(m_BallPos, img_raw)) {
+		MessageBox("No Ball Detected!");
+		img_raw.copyTo(img_disp, mask);
+	}
+	else {
+		m_MyCamera.drawPoint(img_raw, img_proc, m_BallPos, cv::Scalar(0));
+		img_proc.copyTo(img_disp, mask);
+		m_BallXPosText.Format("%.1fmm", m_BallPos(0));
+		m_BallYPosText.Format("%.1fmm", m_BallPos(1));
+		t2 = GetCycleCount();
+		m_TimeText.Format("%.1fms", (t2 - t1) * 1000.0 / m_CPUFrequency);
+		UpdateData(false);
+	}
+
+	OnPaint();
+
+	CDialogEx::OnTimer(nIDEvent);
 }

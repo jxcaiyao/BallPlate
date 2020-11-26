@@ -18,6 +18,9 @@ public:
 	int Array2Mat(BYTE* array, cv::Mat& img, int width, int height);
 	int Mat2CImage(cv::Mat* mat, CImage& img);
 
+	inline UINT64 GetCycleCount();
+	void GetCPUFrequency();
+
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_BALLPLATE_DIALOG };
@@ -38,12 +41,15 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 private:
+	double m_CPUFrequency;
+
 	CStatic m_Image;			//图像显示控件
 	CMilVision m_MilVision;		//用于连接相机驱动板
 	CMyView m_MyView;			//暂无用处
 	MyCamera m_MyCamera;		//用于标定与坐标计算
 
 	BYTE* m_array;				//测试用数组
+	cv::Mat mask;
 	cv::Mat img_raw;			//原始的图像
 	cv::Mat img_proc;			//处理的图像
 	cv::Mat img_disp;			//显示的图像
@@ -54,4 +60,12 @@ public:
 	afx_msg void OnBnClickedButtonCaliImage();	//标定
 	afx_msg void OnBnClickedButtonBallPos();
 	afx_msg void OnBnClickedButtonContinue();
+	afx_msg void OnBnClickedButtonContinuePosition();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+
+private:
+	CString m_BallXPosText;
+	CString m_BallYPosText;
+public:
+	CString m_TimeText;
 };

@@ -13,6 +13,7 @@ public:
 	int caliImage(cv::Mat img_raw);
 	int getBallPosition(Eigen::Vector2d &ball_pos, cv::Mat img_raw);
 	int drawPoint(cv::Mat img_raw, cv::Mat &img_disp, Eigen::Vector2d p_world, cv::Scalar color = cv::Scalar(127),int radius = 2,int thickness = 3);
+	int getMask(cv::Mat &mask);
 
 private:
 	cv::Point center;
