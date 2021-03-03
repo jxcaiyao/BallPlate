@@ -8,6 +8,8 @@
 #include "MilVision.h"
 #include "MyView.h"
 #include "MyCamera.h"
+#include "MotionControl.h"
+#include "gts.h"
 
 // CBallPlateDlg 对话框
 class CBallPlateDlg : public CDialogEx
@@ -47,6 +49,8 @@ private:
 	CMilVision m_MilVision;		//用于连接相机驱动板
 	CMyView m_MyView;			//暂无用处
 	MyCamera m_MyCamera;		//用于标定与坐标计算
+	MotionControl m_XCtrl;
+	MotionControl m_YCtrl;
 
 	BYTE* m_array;				//测试用数组
 	cv::Mat mask;
@@ -66,6 +70,7 @@ public:
 private:
 	CString m_BallXPosText;
 	CString m_BallYPosText;
-public:
 	CString m_TimeText;
+	CString m_XCtrlText;
+	CString m_YCtrlText;
 };

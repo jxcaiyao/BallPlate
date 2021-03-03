@@ -76,8 +76,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files\Matrox Imaging\Mil\Include;C:\Program Files\Matrox Imaging\Mil\Include\MilDyn;E:\opencv\x86\include;E:\Eigen\eigen-3.3.8;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\Matrox Imaging\Mil\LIB;E:\opencv\x86\x86\vc16\lib;C:\Users\Administrator\source\repos\BallPlate\BallPlate;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(MIL_HOME)\Include;$(MIL_HOME)\Include\MilDyn;$(OPENCV_HOME)\include;$(EIGEN_HOME);$(IncludePath)</IncludePath>
+    <LibraryPath>$(MIL_HOME)\LIB;$(OPENCV_HOME)\x86\vc16\lib;$(ProjectDir);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -98,7 +98,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>Mil.lib;opencv_world411d.lib;gts.lib</AdditionalDependencies>
+      <AdditionalDependencies>gts.lib;Mil.lib;opencv_world411d.lib;gts.lib</AdditionalDependencies>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
     <Midl>
@@ -191,6 +191,7 @@
     <ClInclude Include="BallPlateDlg.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="MilVision.h" />
+    <ClInclude Include="MotionControl.h" />
     <ClInclude Include="MyCamera.h" />
     <ClInclude Include="MyView.h" />
     <ClInclude Include="pch.h" />
@@ -203,6 +204,7 @@
     <ClCompile Include="BallPlate.cpp" />
     <ClCompile Include="BallPlateDlg.cpp" />
     <ClCompile Include="MilVision.cpp" />
+    <ClCompile Include="MotionControl.cpp" />
     <ClCompile Include="MyCamera.cpp" />
     <ClCompile Include="MyView.cpp" />
     <ClCompile Include="pch.cpp">

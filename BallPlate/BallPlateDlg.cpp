@@ -7,7 +7,6 @@
 #include "BallPlate.h"
 #include "BallPlateDlg.h"
 #include "afxdialogex.h"
-#include "gts.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -33,6 +32,20 @@ void CBallPlateDlg::GetCPUFrequency()
 
 	Sleep(1000);
 	m_CPUFrequency = (double)(GetCycleCount() - start - end);
+}
+
+
+int CommandHandler(CString str, int error)
+{
+	if (!error) {
+		return 0;
+	}
+	CString str1;
+	str1.Format(" : %d", error);
+	str1 = str + str1;
+	AfxMessageBox(str1);
+
+	return error;
 }
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
@@ -77,6 +90,8 @@ CBallPlateDlg::CBallPlateDlg(CWnd* pParent /*=nullptr*/)
 	, m_BallXPosText(_T(""))
 	, m_BallYPosText(_T(""))
 	, m_TimeText(_T(""))
+	, m_XCtrlText(_T(""))
+	, m_YCtrlText(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_CPUFrequency = 3600000000;
@@ -90,6 +105,8 @@ void CBallPlateDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Text(pDX, IDC_BALL_POSX, m_BallXPosText);
 	DDX_Text(pDX, IDC_BALL_POSY, m_BallYPosText);
 	DDX_Text(pDX, IDC_TIME_TEXT, m_TimeText);
+	DDX_Text(pDX, IDC_XCTRL, m_XCtrlText);
+	DDX_Text(pDX, IDC_YCTRL, m_YCtrlText);
 }
 
 BEGIN_MESSAGE_MAP(CBallPlateDlg, CDialogEx)
@@ -148,6 +165,74 @@ BOOL CBallPlateDlg::OnInitDialog()
 
 	//显示图像
 	//m_MilVision.GrabContinuous(m_Image);
+
+	double t1;
+	t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
+
+	m_XCtrl.InitParams(0.0, 7.0, 0.2, 70.0, t1);
+	m_YCtrl.InitParams(0.0, 7.0, 0.2, 70.0, t1);
+
+
+	int sRtn = 0;
+
+	//sRtn = GT_Close();
+	//if (CommandHandler("GT_Close", sRtn))
+	//	return 0;
+
+	sRtn = GT_Open();
+	if (CommandHandler("GT_Open", sRtn))
+		return 0;
+
+	sRtn = GT_ClrSts(1, 8);
+
+	sRtn = GT_Reset();
+	if (CommandHandler("GT_Reset", sRtn))
+		return 0;
+	Sleep(500);
+
+	sRtn = GT_LoadConfig("GTS800.cfg");
+	if (CommandHandler("GT_LoadConfig", sRtn))
+		return 0;
+
+	sRtn = GT_ClrSts(1, 2);
+	if (CommandHandler("GT_ClrSts", sRtn))
+		return 0;
+
+	TPid pid;
+
+	sRtn = GT_GetPid(1, 1, &pid);
+	if (CommandHandler("GT_GetPid", sRtn))
+		return 0;
+
+	pid.kp = 0.85;
+	pid.ki = 0.00;
+	pid.kd = 0.04;
+
+	sRtn = GT_SetPid(1, 1, &pid);
+	if (CommandHandler("GT_SetPid", sRtn))
+		return 0;
+
+
+	sRtn = GT_GetPid(2, 1, &pid);
+	if (CommandHandler("GT_GetPid", sRtn))
+		return 0;
+
+	pid.kp = 0.85;
+	pid.ki = 0.00;
+	pid.kd = 0.04;
+
+	sRtn = GT_SetPid(2, 1, &pid);
+	if (CommandHandler("GT_SetPid", sRtn))
+		return 0;
+
+
+	sRtn = GT_AxisOn(1);
+	if (CommandHandler("GT_AxisOn", sRtn))
+		return 0;
+
+	sRtn = GT_AxisOn(2);
+	if (CommandHandler("GT_AxisOn", sRtn))
+		return 0;
 
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -309,13 +394,9 @@ void CBallPlateDlg::OnBnClickedButtonContinue()
 void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	SetTimer(1, 1, NULL);
+	SetTimer(1, 60, NULL);
 }
 
-int __stdcall ThreadGetFrame(void* pM) {
-
-	return 0;
-}
 
 void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 {
@@ -333,8 +414,48 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 		img_proc.copyTo(img_disp, mask);
 		m_BallXPosText.Format("%.1fmm", m_BallPos(0));
 		m_BallYPosText.Format("%.1fmm", m_BallPos(1));
+
+
 		t2 = GetCycleCount();
 		m_TimeText.Format("%.1fms", (t2 - t1) * 1000.0 / m_CPUFrequency);
+
+		m_XCtrl.ControlUpdate(m_BallPos(0), t2 * 1000.0 / m_CPUFrequency);
+		m_YCtrl.ControlUpdate(m_BallPos(1), t2 * 1000.0 / m_CPUFrequency);
+
+		TTrapPrm Xtrap,Ytrap;
+
+		GT_ZeroPos(1);
+		GT_SetPrfPos(1, 0);
+		GT_PrfTrap(1);
+		GT_GetTrapPrm(1, &Xtrap);
+		Xtrap.acc = 0.25;
+		Xtrap.dec = 0.25;
+		Xtrap.smoothTime = 5;
+		GT_SetTrapPrm(1, &Xtrap);
+		GT_SetPos(1, m_XCtrl.Output);
+		GT_SetVel(1, 50);
+
+		GT_ZeroPos(2);
+		GT_SetPrfPos(2, 0);
+		GT_PrfTrap(2);
+		GT_GetTrapPrm(2, &Ytrap);
+		Ytrap.acc = 0.25;
+		Ytrap.dec = 0.25;
+		Ytrap.smoothTime = 5;
+		GT_SetTrapPrm(2, &Ytrap);
+		GT_SetPos(2, m_YCtrl.Output);
+		GT_SetVel(2, 50);
+
+		GT_Update(0x11);
+
+		double XPos, YPos;
+		GT_GetPrfPos(1, &XPos);
+		GT_GetPrfPos(1, &YPos);
+
+
+		m_XCtrlText.Format("%.0f  %.0f", m_XCtrl.Output, XPos);
+		m_YCtrlText.Format("%.0f  %.0f", m_YCtrl.Output, YPos);
+
 		UpdateData(false);
 	}
 

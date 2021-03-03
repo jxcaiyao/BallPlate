@@ -17,6 +17,9 @@
 #define IDC_BALL_POSX                   1007
 #define IDC_BALL_POSY                   1008
 #define IDC_TIME_TEXT                   1009
+#define IDC_XCTRL                       1010
+#define IDC_XCTRL2                      1011
+#define IDC_YCTRL                       1011
 
 // Next default values for new objects
 // 
