@@ -7,11 +7,14 @@
 #include "BallPlate.h"
 #include "BallPlateDlg.h"
 #include "afxdialogex.h"
+#include <iostream>
+#include <fstream>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
+std::ofstream fout;
 
 inline UINT64 CBallPlateDlg::GetCycleCount()
 {
@@ -169,8 +172,8 @@ BOOL CBallPlateDlg::OnInitDialog()
 	double t1;
 	t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
 
-	m_XCtrl.InitParams(0.0, 7.0, 0.2, 70.0, t1);
-	m_YCtrl.InitParams(0.0, 7.0, 0.2, 70.0, t1);
+	m_XCtrl.InitParams(0.0, 3.0, 0.1, 20.0, t1);
+	m_YCtrl.InitParams(0.0, 3.0, 0.1, 20.0, t1);
 
 
 	int sRtn = 0;
@@ -233,6 +236,8 @@ BOOL CBallPlateDlg::OnInitDialog()
 	sRtn = GT_AxisOn(2);
 	if (CommandHandler("GT_AxisOn", sRtn))
 		return 0;
+
+	fout.open("data.csv", std::ios::out | std::ios::trunc);
 
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -395,6 +400,7 @@ void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	SetTimer(1, 60, NULL);
+	SetTimer(2, 5, NULL);
 }
 
 
@@ -402,64 +408,82 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
 	UINT64 t1, t2;
-	t1 = GetCycleCount();
-	m_MilVision.ImageFrameGrab();
-	Array2Mat(m_MilVision.m_pDataArray, img_raw, 576, 768);
-	if (m_MyCamera.getBallPosition(m_BallPos, img_raw)) {
-		MessageBox("No Ball Detected!");
-		img_raw.copyTo(img_disp, mask);
+	static UINT64 t3 = 0, t4 = 0;
+	double XEnc, YEnc;
+
+	switch (nIDEvent) {
+	case 1:
+		t1 = GetCycleCount();
+		m_MilVision.ImageFrameGrab();
+		Array2Mat(m_MilVision.m_pDataArray, img_raw, 576, 768);
+		if (m_MyCamera.getBallPosition(m_BallPos, img_raw)) {
+			MessageBox("No Ball Detected!");
+			img_raw.copyTo(img_disp, mask);
+		}
+		else {
+			m_MyCamera.drawPoint(img_raw, img_proc, m_BallPos, cv::Scalar(0));
+			img_proc.copyTo(img_disp, mask);
+			m_BallXPosText.Format("%.1fmm", m_BallPos(0));
+			m_BallYPosText.Format("%.1fmm", m_BallPos(1));
+
+
+			t2 = GetCycleCount();
+			m_TimeText.Format("%.1fms", (t2 - t1) * 1000.0 / m_CPUFrequency);
+
+			m_XCtrl.ControlUpdate(m_BallPos(0), t2 * 1000.0 / m_CPUFrequency);
+			m_YCtrl.ControlUpdate(m_BallPos(1), t2 * 1000.0 / m_CPUFrequency);
+
+			short rtn;
+
+			TCrdPrm crdPrm;
+			memset(&crdPrm, 0, sizeof(crdPrm));
+			crdPrm.dimension = 2;
+			crdPrm.synVelMax = 20;
+			crdPrm.synAccMax = 0.4;
+			crdPrm.evenTime = 5;
+			crdPrm.profile[0] = 1;
+			crdPrm.profile[1] = 2;
+			rtn = GT_SetCrdPrm(1, &crdPrm);
+			rtn = GT_CrdClear(1, 0);
+
+			rtn = GT_LnXY(1, m_XCtrl.Output, m_YCtrl.Output, 10, 0.2, 0, 0);
+
+			rtn = GT_CrdStart(1, 0);
+
+
+			//m_XCtrlText.Format("%.0f  %.0f", m_XCtrl.Output, XPos);
+			//m_YCtrlText.Format("%.0f  %.0f", m_YCtrl.Output, YPos);
+
+			UpdateData(false);
+		}
+
+		OnPaint();
+		break;
+		
+	case 2:
+		if (t3) {
+			GT_GetEncPos(1, &XEnc);
+			GT_GetEncPos(2, &YEnc);
+
+			t4 = GetCycleCount();
+			double time = (t4 - t3) * 1000 / m_CPUFrequency;
+
+			fout << time << "," << m_BallPos(0) << "," << m_BallPos(1) << "," << m_XCtrl.Output << "," << m_YCtrl.Output << "," << XEnc << "," << YEnc << std::endl;
+
+
+		}
+		else {
+			t3 = GetCycleCount();
+			fout << "time,m_BallPos(0),m_BallPos(1),m_XCtrl.Output,m_YCtrl.Output,XEnc,YEnc" << std::endl;
+
+		}
+
+		break;
+
+	default:
+		break;
 	}
-	else {
-		m_MyCamera.drawPoint(img_raw, img_proc, m_BallPos, cv::Scalar(0));
-		img_proc.copyTo(img_disp, mask);
-		m_BallXPosText.Format("%.1fmm", m_BallPos(0));
-		m_BallYPosText.Format("%.1fmm", m_BallPos(1));
-
-
-		t2 = GetCycleCount();
-		m_TimeText.Format("%.1fms", (t2 - t1) * 1000.0 / m_CPUFrequency);
-
-		m_XCtrl.ControlUpdate(m_BallPos(0), t2 * 1000.0 / m_CPUFrequency);
-		m_YCtrl.ControlUpdate(m_BallPos(1), t2 * 1000.0 / m_CPUFrequency);
-
-		TTrapPrm Xtrap,Ytrap;
-
-		GT_ZeroPos(1);
-		GT_SetPrfPos(1, 0);
-		GT_PrfTrap(1);
-		GT_GetTrapPrm(1, &Xtrap);
-		Xtrap.acc = 0.25;
-		Xtrap.dec = 0.25;
-		Xtrap.smoothTime = 5;
-		GT_SetTrapPrm(1, &Xtrap);
-		GT_SetPos(1, m_XCtrl.Output);
-		GT_SetVel(1, 50);
-
-		GT_ZeroPos(2);
-		GT_SetPrfPos(2, 0);
-		GT_PrfTrap(2);
-		GT_GetTrapPrm(2, &Ytrap);
-		Ytrap.acc = 0.25;
-		Ytrap.dec = 0.25;
-		Ytrap.smoothTime = 5;
-		GT_SetTrapPrm(2, &Ytrap);
-		GT_SetPos(2, m_YCtrl.Output);
-		GT_SetVel(2, 50);
-
-		GT_Update(0x11);
-
-		double XPos, YPos;
-		GT_GetPrfPos(1, &XPos);
-		GT_GetPrfPos(1, &YPos);
-
-
-		m_XCtrlText.Format("%.0f  %.0f", m_XCtrl.Output, XPos);
-		m_YCtrlText.Format("%.0f  %.0f", m_YCtrl.Output, YPos);
-
-		UpdateData(false);
-	}
-
-	OnPaint();
+	
 
 	CDialogEx::OnTimer(nIDEvent);
 }
