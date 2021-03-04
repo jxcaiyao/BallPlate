@@ -7,14 +7,11 @@
 #include "BallPlate.h"
 #include "BallPlateDlg.h"
 #include "afxdialogex.h"
-#include <iostream>
-#include <fstream>
+#include <thread>
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
-std::ofstream fout;
 
 inline UINT64 CBallPlateDlg::GetCycleCount()
 {
@@ -49,6 +46,24 @@ int CommandHandler(CString str, int error)
 	AfxMessageBox(str1);
 
 	return error;
+}
+
+void CBallPlateDlg::SaveData(void) {
+	UINT64 t3, t4;
+	double XEnc, YEnc;
+
+	t3 = GetCycleCount();
+	while(true) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+		GT_GetEncPos(1, &XEnc);
+		GT_GetEncPos(2, &YEnc);
+
+		t4 = GetCycleCount();
+		double time = (t4 - t3) * 1000 / m_CPUFrequency;
+
+		fout << time << "," << m_BallPos(0) << "," << m_BallPos(1) << "," << m_XCtrl.Output << "," << m_YCtrl.Output << "," << XEnc << "," << YEnc << std::endl;
+	}
 }
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
@@ -400,7 +415,7 @@ void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	SetTimer(1, 60, NULL);
-	SetTimer(2, 5, NULL);
+	std::thread measure;
 }
 
 
@@ -408,8 +423,6 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
 	UINT64 t1, t2;
-	static UINT64 t3 = 0, t4 = 0;
-	double XEnc, YEnc;
 
 	switch (nIDEvent) {
 	case 1:
@@ -446,7 +459,11 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 			rtn = GT_SetCrdPrm(1, &crdPrm);
 			rtn = GT_CrdClear(1, 0);
 
-			rtn = GT_LnXY(1, m_XCtrl.Output, m_YCtrl.Output, 10, 0.2, 0, 0);
+			double XEnc, YEnc;
+			GT_GetEncPos(1, &XEnc);
+			GT_GetEncPos(2, &YEnc);
+
+			rtn = GT_LnXY(1, (long)(m_XCtrl.Output - XEnc), (long)(m_YCtrl.Output - YEnc), 20, 0.4, 0, 0);
 
 			rtn = GT_CrdStart(1, 0);
 
@@ -460,25 +477,6 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 		OnPaint();
 		break;
 		
-	case 2:
-		if (t3) {
-			GT_GetEncPos(1, &XEnc);
-			GT_GetEncPos(2, &YEnc);
-
-			t4 = GetCycleCount();
-			double time = (t4 - t3) * 1000 / m_CPUFrequency;
-
-			fout << time << "," << m_BallPos(0) << "," << m_BallPos(1) << "," << m_XCtrl.Output << "," << m_YCtrl.Output << "," << XEnc << "," << YEnc << std::endl;
-
-
-		}
-		else {
-			t3 = GetCycleCount();
-			fout << "time,m_BallPos(0),m_BallPos(1),m_XCtrl.Output,m_YCtrl.Output,XEnc,YEnc" << std::endl;
-
-		}
-
-		break;
 
 	default:
 		break;

@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <iostream>
+#include <fstream>
 #include "opencv2/opencv.hpp"
 #include "Eigen/Dense"
 #include "MilVision.h"
@@ -22,6 +24,7 @@ public:
 
 	inline UINT64 GetCycleCount();
 	void GetCPUFrequency();
+	void SaveData(void);
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
@@ -51,6 +54,7 @@ private:
 	MyCamera m_MyCamera;		//用于标定与坐标计算
 	MotionControl m_XCtrl;
 	MotionControl m_YCtrl;
+	std::ofstream fout;
 
 	BYTE* m_array;				//测试用数组
 	cv::Mat mask;
