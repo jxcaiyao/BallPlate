@@ -24,7 +24,6 @@ public:
 
 	inline UINT64 GetCycleCount();
 	void GetCPUFrequency();
-	void SaveData(void);
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
@@ -45,7 +44,7 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
-private:
+public:
 	double m_CPUFrequency;
 
 	CStatic m_Image;			//图像显示控件

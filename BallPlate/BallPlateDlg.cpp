@@ -48,21 +48,30 @@ int CommandHandler(CString str, int error)
 	return error;
 }
 
-void CBallPlateDlg::SaveData(void) {
+void SaveData(CBallPlateDlg* bp) {
 	UINT64 t3, t4;
 	double XEnc, YEnc;
 
-	t3 = GetCycleCount();
+	CString foutName;
+	foutName.Format("../data/data%d.csv", clock());
+
+	std::ofstream fout;
+	fout.open(foutName, std::ios::out | std::ios::trunc);
+
+	fout << "Kp," << bp->m_XCtrl.Kp << ",Ki," << bp->m_XCtrl.Ki << ",Kd," << bp->m_XCtrl.Kd << std::endl;
+
+	fout << "time,m_BallPos(0),m_BallPos(1),m_XCtrl.Output,m_YCtrl.Output,XEnc,YEnc" << std::endl;
+	t3 = bp->GetCycleCount();
 	while(true) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
 		GT_GetEncPos(1, &XEnc);
 		GT_GetEncPos(2, &YEnc);
 
-		t4 = GetCycleCount();
-		double time = (t4 - t3) * 1000 / m_CPUFrequency;
+		t4 = bp->GetCycleCount();
+		double time = (t4 - t3) * 1000 / bp->m_CPUFrequency;
 
-		fout << time << "," << m_BallPos(0) << "," << m_BallPos(1) << "," << m_XCtrl.Output << "," << m_YCtrl.Output << "," << XEnc << "," << YEnc << std::endl;
+		fout << time << "," << bp->m_BallPos(0) << "," << bp->m_BallPos(1) << "," << bp->m_XCtrl.Output << "," << bp->m_YCtrl.Output << "," << XEnc << "," << YEnc << std::endl;
 	}
 }
 
@@ -187,8 +196,8 @@ BOOL CBallPlateDlg::OnInitDialog()
 	double t1;
 	t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
 
-	m_XCtrl.InitParams(0.0, 3.0, 0.1, 20.0, t1);
-	m_YCtrl.InitParams(0.0, 3.0, 0.1, 20.0, t1);
+	m_XCtrl.InitParams(0.0, 5.0, 0.02, 150.0, t1);
+	m_YCtrl.InitParams(0.0, 5.0, 0.02, 150.0, t1);
 
 
 	int sRtn = 0;
@@ -252,7 +261,6 @@ BOOL CBallPlateDlg::OnInitDialog()
 	if (CommandHandler("GT_AxisOn", sRtn))
 		return 0;
 
-	fout.open("data.csv", std::ios::out | std::ios::trunc);
 
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -415,7 +423,8 @@ void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	SetTimer(1, 60, NULL);
-	std::thread measure;
+	std::thread measure(SaveData, this);
+	measure.detach();
 }
 
 
