@@ -48,21 +48,69 @@ int CommandHandler(CString str, int error)
 	return error;
 }
 
-void CBallPlateDlg::SaveData(void) {
+void GrabCam(CBallPlateDlg* proc) {
+	UINT64 t1, t2;
+	t1 = proc->GetCycleCount();
+
+	while (true) {
+		proc->m_MilVision.ImageFrameGrab();
+		proc->Array2Mat(proc->m_MilVision.m_pDataArray, proc->img_raw, 576, 768);
+
+		if (proc->m_MyCamera.getBallPosition(proc->m_BallPos, proc->img_raw)) {
+			AfxMessageBox(TEXT("No Ball Detected!"));
+			proc->img_raw.copyTo(proc->img_disp);
+		}
+		else {
+			proc->m_BallXPosText.Format("%.1fmm", proc->m_BallPos.x);
+			proc->m_BallYPosText.Format("%.1fmm", proc->m_BallPos.y);
+
+			proc->m_MyCamera.drawPoint(proc->img_raw, proc->img_proc, proc->m_BallPos, cv::Scalar(0));
+			proc->img_proc.copyTo(proc->img_disp);
+		}
+		t2 = proc->GetCycleCount();
+		proc->m_TimeText.Format("%.1fms", (t2 - t1) * 1000.0 / proc->m_CPUFrequency);
+		t1 = t2;
+
+		proc->MyOnPaint();
+	}
+}
+
+void SaveData(CBallPlateDlg *proc) {
+
+	time_t tim = time(NULL);
+	tm LocTime;
+	localtime_s(&LocTime, &tim);
+
+	CString FileName;
+	FileName.Format("data_%d_%d_%d_%d_%d_%d.csv",
+		LocTime.tm_year + 1900,
+		LocTime.tm_mon + 1,
+		LocTime.tm_mday,
+		LocTime.tm_hour,
+		LocTime.tm_min,
+		LocTime.tm_sec);
+
+	std::ofstream fout;
+	fout.open(FileName, std::ios::out | std::ios::trunc);
+
+	fout << "X_Kp," << proc->m_XCtrl.Kp << ",X_Ki," << proc->m_XCtrl.Ki << ",X_Kd," << proc->m_XCtrl.Kd << std::endl;
+	fout << "Y_Kp," << proc->m_YCtrl.Kp << ",Y_Ki," << proc->m_YCtrl.Ki << ",Y_Kd," << proc->m_YCtrl.Kd << std::endl;
+	fout << std::endl;
+
 	UINT64 t3, t4;
 	double XEnc, YEnc;
 
-	t3 = GetCycleCount();
+	t3 = proc->GetCycleCount();
 	while(true) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(5));
 
 		GT_GetEncPos(1, &XEnc);
 		GT_GetEncPos(2, &YEnc);
 
-		t4 = GetCycleCount();
-		double time = (t4 - t3) * 1000 / m_CPUFrequency;
+		t4 = proc->GetCycleCount();
+		double time = (t4 - t3) * 1000 / proc->m_CPUFrequency;
 
-		fout << time << "," << m_BallPos(0) << "," << m_BallPos(1) << "," << m_XCtrl.Output << "," << m_YCtrl.Output << "," << XEnc << "," << YEnc << std::endl;
+		fout << time << "," << proc->m_BallPos.x << "," << proc->m_BallPos.y << "," << proc->m_XCtrl.Output << "," << proc->m_YCtrl.Output << "," << XEnc << "," << YEnc << std::endl;
 	}
 }
 
@@ -111,6 +159,7 @@ CBallPlateDlg::CBallPlateDlg(CWnd* pParent /*=nullptr*/)
 	, m_XCtrlText(_T(""))
 	, m_YCtrlText(_T(""))
 {
+	f_CamParams = _T("cameraParams.yaml");
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	m_CPUFrequency = 3600000000;
 	m_array = { 0 };
@@ -252,8 +301,8 @@ BOOL CBallPlateDlg::OnInitDialog()
 	if (CommandHandler("GT_AxisOn", sRtn))
 		return 0;
 
-	fout.open("data.csv", std::ios::out | std::ios::trunc);
-
+	thGrab = std::thread(GrabCam, this);
+	thSave = std::thread(SaveData, this);
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -370,6 +419,7 @@ void CBallPlateDlg::OnBnClickedButtonCaliImage()
 	CString str;
 	t1 = GetCycleCount();
 	m_MyCamera.caliImage(img_raw);
+	m_MyCamera.saveParams(f_CamParams);
 	m_MyCamera.getMask(mask);
 	t2 = GetCycleCount();
 	str.Format(TEXT("use time: %fms"), (t2 - t1) * 1000.0 / m_CPUFrequency);
@@ -414,69 +464,51 @@ void CBallPlateDlg::OnBnClickedButtonContinue()
 void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	m_MyCamera.readParams(f_CamParams);
 	SetTimer(1, 60, NULL);
-	std::thread measure;
+
+	thGrab.detach();
+	thSave.detach();
 }
 
 
 void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: 在此添加消息处理程序代码和/或调用默认值
-	UINT64 t1, t2;
-
+	UINT64 t;
 	switch (nIDEvent) {
 	case 1:
-		t1 = GetCycleCount();
-		m_MilVision.ImageFrameGrab();
-		Array2Mat(m_MilVision.m_pDataArray, img_raw, 576, 768);
-		if (m_MyCamera.getBallPosition(m_BallPos, img_raw)) {
-			MessageBox("No Ball Detected!");
-			img_raw.copyTo(img_disp, mask);
-		}
-		else {
-			m_MyCamera.drawPoint(img_raw, img_proc, m_BallPos, cv::Scalar(0));
-			img_proc.copyTo(img_disp, mask);
-			m_BallXPosText.Format("%.1fmm", m_BallPos(0));
-			m_BallYPosText.Format("%.1fmm", m_BallPos(1));
+		t = GetCycleCount();
+		m_XCtrl.ControlUpdate(m_BallPos.x, t * 1000.0 / m_CPUFrequency);
+		m_YCtrl.ControlUpdate(m_BallPos.y, t * 1000.0 / m_CPUFrequency);
 
+		short rtn;
 
-			t2 = GetCycleCount();
-			m_TimeText.Format("%.1fms", (t2 - t1) * 1000.0 / m_CPUFrequency);
+		TCrdPrm crdPrm;
+		memset(&crdPrm, 0, sizeof(crdPrm));
+		crdPrm.dimension = 2;
+		crdPrm.synVelMax = 20;
+		crdPrm.synAccMax = 0.4;
+		crdPrm.evenTime = 5;
+		crdPrm.profile[0] = 1;
+		crdPrm.profile[1] = 2;
+		rtn = GT_SetCrdPrm(1, &crdPrm);
+		rtn = GT_CrdClear(1, 0);
 
-			m_XCtrl.ControlUpdate(m_BallPos(0), t2 * 1000.0 / m_CPUFrequency);
-			m_YCtrl.ControlUpdate(m_BallPos(1), t2 * 1000.0 / m_CPUFrequency);
+		double XEnc, YEnc;
+		GT_GetEncPos(1, &XEnc);
+		GT_GetEncPos(2, &YEnc);
 
-			short rtn;
+		rtn = GT_LnXY(1, (long)(m_XCtrl.Output - XEnc), (long)(m_YCtrl.Output - YEnc), 20, 0.4, 0, 0);
+		rtn = GT_CrdStart(1, 0);
 
-			TCrdPrm crdPrm;
-			memset(&crdPrm, 0, sizeof(crdPrm));
-			crdPrm.dimension = 2;
-			crdPrm.synVelMax = 20;
-			crdPrm.synAccMax = 0.4;
-			crdPrm.evenTime = 5;
-			crdPrm.profile[0] = 1;
-			crdPrm.profile[1] = 2;
-			rtn = GT_SetCrdPrm(1, &crdPrm);
-			rtn = GT_CrdClear(1, 0);
+		m_XCtrlText.Format("%.0f  %.0f", m_XCtrl.Output, XEnc);
+		m_YCtrlText.Format("%.0f  %.0f", m_YCtrl.Output, YEnc);
 
-			double XEnc, YEnc;
-			GT_GetEncPos(1, &XEnc);
-			GT_GetEncPos(2, &YEnc);
-
-			rtn = GT_LnXY(1, (long)(m_XCtrl.Output - XEnc), (long)(m_YCtrl.Output - YEnc), 20, 0.4, 0, 0);
-
-			rtn = GT_CrdStart(1, 0);
-
-
-			//m_XCtrlText.Format("%.0f  %.0f", m_XCtrl.Output, XPos);
-			//m_YCtrlText.Format("%.0f  %.0f", m_YCtrl.Output, YPos);
-
-			UpdateData(false);
-		}
+		UpdateData(false);
 
 		OnPaint();
 		break;
-		
 
 	default:
 		break;

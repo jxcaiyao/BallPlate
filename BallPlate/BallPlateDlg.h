@@ -6,7 +6,6 @@
 #include <iostream>
 #include <fstream>
 #include "opencv2/opencv.hpp"
-#include "Eigen/Dense"
 #include "MilVision.h"
 #include "MyView.h"
 #include "MyCamera.h"
@@ -21,10 +20,10 @@ public:
 	CBallPlateDlg(CWnd* pParent = nullptr);	// 标准构造函数
 	int Array2Mat(BYTE* array, cv::Mat& img, int width, int height);
 	int Mat2CImage(cv::Mat* mat, CImage& img);
+	void MyOnPaint(void) { OnPaint(); };
 
 	inline UINT64 GetCycleCount();
 	void GetCPUFrequency();
-	void SaveData(void);
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
@@ -45,8 +44,10 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
-private:
+public:
 	double m_CPUFrequency;
+
+	CString f_CamParams;
 
 	CStatic m_Image;			//图像显示控件
 	CMilVision m_MilVision;		//用于连接相机驱动板
@@ -54,14 +55,16 @@ private:
 	MyCamera m_MyCamera;		//用于标定与坐标计算
 	MotionControl m_XCtrl;
 	MotionControl m_YCtrl;
-	std::ofstream fout;
+
+	std::thread thGrab;
+	std::thread thSave;
 
 	BYTE* m_array;				//测试用数组
 	cv::Mat mask;
 	cv::Mat img_raw;			//原始的图像
 	cv::Mat img_proc;			//处理的图像
 	cv::Mat img_disp;			//显示的图像
-	Eigen::Vector2d m_BallPos;	//小球世界坐标
+	cv::Point2d m_BallPos;		//小球世界坐标
 
 public:
 	afx_msg void OnBnClickedButtonGrabImage();	//截图
@@ -71,7 +74,7 @@ public:
 	afx_msg void OnBnClickedButtonContinuePosition();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 
-private:
+public:
 	CString m_BallXPosText;
 	CString m_BallYPosText;
 	CString m_TimeText;

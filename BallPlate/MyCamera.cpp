@@ -18,21 +18,22 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 		std::cout << "Bad parameters for getProcArea!" << std::endl;
 		return -1;
 	}
-	this->center = cv::Point(cvRound(proc_area[0]), cvRound(proc_area[1]));
-	this->radius = cvRound(proc_area[2]);
+	imageSize = img_proc.size();
+	center = cv::Point(cvRound(proc_area[0]), cvRound(proc_area[1]));
+	radius = cvRound(proc_area[2]);
 
 	//截取圆盘图像
 	cv::Mat img_clp;
-	this->mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
-	cv::circle(this->mask, this->center, this->radius, cv::Scalar(255), -1);
-	img_proc.copyTo(img_clp, this->mask);
+	mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
+	cv::circle(mask, center, radius, cv::Scalar(255), -1);
+	img_proc.copyTo(img_clp, mask);
 
 	//图像二值化
 	//cv::threshold(img_clp, img_clp, 200, 255, cv::THRESH_BINARY);
 
 	//求取标定点坐标
 	std::vector<cv::Vec3f> circles_cali;
-	rtn = getCaliPnt(img_clp, circles_cali, 30, 200, 10, 0, this->radius / 30);
+	rtn = getCaliPnt(img_clp, circles_cali, 30, 200, 10, 0, radius / 30);
 	if (rtn) {
 		std::cout << "Bad parameters for getCaliPnt!" << std::endl;
 		return -1;
@@ -46,28 +47,30 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 	//cv::waitKey(0);
 
 	//预估变换矩阵将实际标定点转为预估标定点在图像中的位置
-	double k = this->radius / 140.0 / sqrt(2);
+	double k = radius / 140.0 / sqrt(2);
 
-	trans << k, k, center.x,
-			 k,-k, center.y,
-			 0, 0, 1;
+	trans = cv::Mat::eye(3, 3, CV_64FC1);
+	trans.at<double>(0, 0) = k;
+	trans.at<double>(0, 1) = k;
+	trans.at<double>(1, 0) = k;
+	trans.at<double>(1, 1) = -k;
+	trans.at<double>(0, 2) = center.x;
+	trans.at<double>(1, 2) = center.y;
 
-	Eigen::MatrixXd pnt_exp(3, 9);
+	cv::Matx<double,3,9> pnt_exp;
 	pnt_exp <<	-120,	-60,	0,		-60,	0,		60,		0,		60,		120,
 				0,		60,		120,	-60,	0,		60,		-120,	-60,	0,
 				1,		1,		1,		1,		1,		1,		1,		1,		1;
 
-	Eigen::MatrixXd pnt_tru(3, circles_cali.size());
+	cv::Mat pnt_tru = cv::Mat::zeros(3, circles_cali.size(), CV_64FC1);
 	for (int i = 0; i < (int)circles_cali.size();i++) {
-		pnt_tru(0, i) = (double)circles_cali[i][0];
-		pnt_tru(1, i) = (double)circles_cali[i][1];
-		pnt_tru(2, i) = 1;
+		pnt_tru.at<double>(0, i) = (double)circles_cali[i][0];
+		pnt_tru.at<double>(1, i) = (double)circles_cali[i][1];
+		pnt_tru.at<double>(2, i) = 1;
 	}
 
 	//匹配特征点，除去距离过大的点
-	Eigen::MatrixXd pnt_tru_match, pnt_exp_match;
-	pnt_tru_match = pnt_tru;
-	pnt_exp_match = pnt_exp;
+	cv::Mat pnt_tru_match(pnt_tru), pnt_exp_match(pnt_exp);
 
 	rtn = findNearest(pnt_tru_match, pnt_exp_match);
 	if (rtn) {
@@ -75,7 +78,7 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 		return -1;
 	}
 
-	if (pnt_tru_match.cols() < 6) {
+	if (pnt_tru_match.cols < 6) {
 		std::cout << "Not enough match point!" << std::endl;
 		return -1;
 	}
@@ -102,18 +105,18 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 		return -1;
 	}
 	//cv::Point center_acu;
-	//center_acu.x = cvRound(this->trans(0, 2));
-	//center_acu.y = cvRound(this->trans(1, 2));
+	//center_acu.x = cvRound(trans(0, 2));
+	//center_acu.y = cvRound(trans(1, 2));
 	//img_disp = img_clp.clone();
 	//cv::circle(img_disp, center_acu, 3, cv::Scalar(127), 3);
 	//cv::imshow("Proc Image", img_disp);
 	//cv::waitKey(0);
 
-	this->center.x = cvRound(this->trans(0, 2));
-	this->center.y = cvRound(this->trans(1, 2));
-	this->radius = cvRound((this->trans.block(0, 0, 2, 2) * Eigen::Vector2d(150, 0)).norm());
-	this->mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
-	cv::circle(this->mask, this->center, this->radius, cv::Scalar(255), -1);
+	center.x = cvRound(trans.at<double>(0, 2));
+	center.y = cvRound(trans.at<double>(1, 2));
+	radius = cvRound(150 * cv::norm(trans.col(0)));
+	mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
+	cv::circle(mask, center, radius, cv::Scalar(255), -1);
 
 	//cv::Mat img_clp_acu;
 	//img_proc.copyTo(img_clp_acu, mask);
@@ -123,10 +126,10 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 	return 0;
 }
 
-int MyCamera::getBallPosition(Eigen::Vector2d &ball_pos, cv::Mat img_raw) {
+int MyCamera::getBallPosition(cv::Point2d ball_pos, cv::Mat img_raw) {
 
 	cv::Mat img_clp;
-	img_raw.copyTo(img_clp, this->mask);
+	img_raw.copyTo(img_clp, mask);
 
 	//求取小球相对圆盘坐标
 	std::vector<cv::Vec3f> circle_ball;
@@ -134,29 +137,30 @@ int MyCamera::getBallPosition(Eigen::Vector2d &ball_pos, cv::Mat img_raw) {
 		std::cout << "No ball detected!" << std::endl;
 		return 0;
 	}
-	Eigen::Vector3d ball_vec1, ball_vec2;
-	ball_vec1(0) = circle_ball[0][0];
-	ball_vec1(1) = circle_ball[0][1];
-	ball_vec1(2) = 1;
+	cv::Mat ball_vec1(3, 1, CV_64FC1), ball_vec2(3, 1, CV_64FC1);
+	ball_vec1.at<double>(0, 0) = circle_ball[0][0];
+	ball_vec1.at<double>(0, 1) = circle_ball[0][1];
+	ball_vec1.at<double>(0, 2) = 1;
 
 	//cv::Mat img_disp = img_raw.clone();
 	//cv::circle(img_disp, cv::Point(ball_vec1(0), ball_vec1(1)), 2, cv::Scalar(0), 3);
 	//cv::imshow("Proc Image", img_disp);
 	//cv::waitKey(0);
 
-	ball_vec2 = trans.inverse() * ball_vec1;
+	cv::Mat transInv = trans.inv();
+	ball_vec2 = transInv * ball_vec1;
 
-	ball_pos(0) = ball_vec2(0);
-	ball_pos(1) = ball_vec2(1);
+	ball_pos.x = ball_vec2.at<double>(0, 0);
+	ball_pos.y = ball_vec2.at<double>(0, 1);
 
 	return 0;
 }
 
-int MyCamera::drawPoint(cv::Mat img_raw, cv::Mat &img_disp, Eigen::Vector2d p_world, cv::Scalar color, int radius, int thickness) {
+int MyCamera::drawPoint(cv::Mat img_raw, cv::Mat &img_disp, cv::Point2d p_world, cv::Scalar color, int radius, int thickness) {
 	img_disp = img_raw.clone();
 	cv::Point center;
-	center.x = cvRound(this->trans(0, 0) * p_world(0) + this->trans(0, 1)*p_world(1) + this->trans(0, 2));
-	center.y = cvRound(this->trans(1, 0) * p_world(0) + this->trans(1, 1)*p_world(1) + this->trans(1, 2));
+	center.x = cvRound(trans.at<double>(0, 0) * p_world.x + trans.at<double>(0, 1)*p_world.y + trans.at<double>(0, 2));
+	center.y = cvRound(trans.at<double>(1, 0) * p_world.x + trans.at<double>(1, 1)*p_world.y + trans.at<double>(1, 2));
 	cv::circle(img_disp, center, radius, color, thickness);
 
 	return 0;
@@ -164,6 +168,48 @@ int MyCamera::drawPoint(cv::Mat img_raw, cv::Mat &img_disp, Eigen::Vector2d p_wo
 
 int MyCamera::getMask(cv::Mat& mask) {
 	mask = this->mask.clone();
+
+	return 0;
+}
+
+int MyCamera::saveParams(const char* FileName)
+{
+	cv::FileStorage fs(FileName, cv::FileStorage::WRITE);
+
+	time_t tt;
+	time(&tt);
+	struct tm* t2 = new tm();
+	localtime_s(t2, &tt);
+	char strTime[50];
+	asctime_s(strTime, sizeof(strTime) - 1, t2);
+
+	fs << "calibration_time" << strTime;
+	fs << "imageSize" << imageSize;
+	fs << "center" << center;
+	fs << "radius" << radius;
+	fs << "trans" << trans;
+
+	fs.release();
+
+	return 0;
+}
+
+int MyCamera::readParams(const char* FileName)
+{
+	cv::FileStorage fs(FileName, cv::FileStorage::READ);
+	if (!fs.isOpened()) {
+		return -1;
+	}
+
+	fs["imageSize"] >> imageSize;
+	fs["center"] >> center;
+	fs["radius"] >> radius;
+	fs["trans"] >> trans;
+
+	mask = cv::Mat::zeros(imageSize, CV_8UC1);
+	cv::circle(mask, center, radius, cv::Scalar(255), -1);
+
+	fs.release();
 
 	return 0;
 }
@@ -256,7 +302,7 @@ int MyCamera::getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, doub
 		if (ball_pos.size() == 0) {
 			printf("HoughCircles not find ball!\n");
 			param2 /= 1.2;
-			printf("Too many ball found! param2:%.1f\n", param2);
+			printf("Too many balls found! param2:%.1f\n", param2);
 			//return -1;
 		}
 		else if (ball_pos.size() == 1) {
@@ -267,7 +313,7 @@ int MyCamera::getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, doub
 		}
 		else {
 			param2 *= 1.1;
-			printf("Too many ball found! param2:%.1f\n", param2);
+			printf("Too many balls found! param2:%.1f\n", param2);
 		}
 		if (++times > maxiter) {
 			printf("No Ball found!\n");
@@ -317,11 +363,11 @@ int MyCamera::getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, doub
 	std::vector<cv::Vec3f> temp_pos;
 	temp_pos.push_back(cv::Vec3f(0, 0, 0));
 	sum = 0;
-	for (int i = 0;i < img_ballclp.cols; i++) {
-		for (int j = 0;j < img_ballclp.rows;j++) {
-			if (img_ballclp.at<uchar>(j, i) == 255) {
-				temp_pos[0][0] += i;
-				temp_pos[0][1] += j;
+	for (int i = 0;i < img_ballclp.rows; i++) {
+		for (int j = 0;j < img_ballclp.cols;j++) {
+			if (img_ballclp.at<uchar>(i, j) == 255) {
+				temp_pos[0][0] += j;
+				temp_pos[0][1] += i;
 				sum++;
 			}
 		}
@@ -336,32 +382,33 @@ int MyCamera::getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, doub
 	return 0;
 }
 
-void MyCamera::removeColumn(Eigen::MatrixXd& matrix, unsigned int colToRemove)
+void MyCamera::removeColumn(cv::Mat matrix, unsigned int colToRemove)
 {
-	unsigned int numRows = (unsigned int)matrix.rows();
-	unsigned int numCols = (unsigned int)matrix.cols() - 1;
-
-	if (colToRemove < numCols)
-		matrix.block(0, colToRemove, numRows, numCols - colToRemove) = matrix.block(0, colToRemove + 1, numRows, numCols - colToRemove);
-
-	matrix.conservativeResize(numRows, numCols);
+	matrix = cv::Mat::eye(3, 2, CV_8UC1);
+	cv::Mat dst;
+	for (int i = 0;i < matrix.rows;i++) {
+		if (i != colToRemove){
+			dst.push_back(matrix.row(i));
+		}
+	}
+	matrix = dst.clone();
 }
 
-int MyCamera::findNearest(Eigen::MatrixXd &p_set1, Eigen::MatrixXd &p_set2, double thres) {
+int MyCamera::findNearest(cv::Mat p_set1, cv::Mat p_set2, double thres) {
 
-	Eigen::MatrixXd p_mat1 = Eigen::MatrixXd::Zero(p_set1.rows(), p_set1.cols());
-	Eigen::MatrixXd p_mat2 = Eigen::MatrixXd::Zero(p_set2.rows(), p_set2.cols());
+	cv::Mat p_mat1 = cv::Mat::zeros(p_set1.rows, p_set1.cols, CV_64FC1);
+	cv::Mat p_mat2 = cv::Mat::zeros(p_set2.rows, p_set2.cols, CV_64FC1);
 
 	int match_num = 0;
 
 	double dist, mindist;
 	unsigned int minindex;
-	for (int i = 0; i < p_set1.cols(); ) {
-		mindist = (p_set1.col(i) - this->trans * p_set2.col(0)).norm();
+	for (int i = 0; i < p_set1.cols; ) {
+		mindist = cv::norm(p_set1.col(i) - this->trans * p_set2.col(0));
 		minindex = 0;
-		for (int j = 1;j < p_set2.cols(); j++) {
+		for (int j = 1;j < p_set2.cols; j++) {
 
-			dist = (p_set1.col(i) - this->trans * p_set2.col(j)).norm();
+			dist = cv::norm(p_set1.col(i) - this->trans * p_set2.col(j));
 			if (dist < mindist) {
 				mindist = dist;
 				minindex = j;
@@ -380,39 +427,38 @@ int MyCamera::findNearest(Eigen::MatrixXd &p_set1, Eigen::MatrixXd &p_set2, doub
 		}
 	}
 
-	p_set1 = p_mat1;
-	p_set2 = p_mat2;
-
-	p_set1.conservativeResize(3, match_num);
-	p_set2.conservativeResize(3, match_num);
+	for (int i = 0;i < match_num;i++) {
+		p_set1.push_back(p_mat1.row(i));
+		p_set2.push_back(p_mat2.row(i));
+	}
 
 	return 0;
 }
 
-int MyCamera::getBestTrans(Eigen::MatrixXd p_view, Eigen::MatrixXd p_world) {
+int MyCamera::getBestTrans(cv::Mat p_view, cv::Mat p_world) {
 
-	int n = (int)p_world.cols();
-	if (n != p_view.cols()) {
+	int n = p_world.cols;
+	if (n != p_view.cols) {
 		printf("Columns not equal\n");
 		return -1;
 	}
+	
+	double sx_w = cv::sum(p_world.row(0))[0];
+	double sx2_w = cv::sum(p_world.row(0).mul(p_world.row(0)))[0];
+	double sy_w = cv::sum(p_world.row(1))[0];
+	double sy2_w = cv::sum(p_world.row(1).mul(p_world.row(1)))[0];
+	double sxy_ww = cv::sum(p_world.row(0).mul(p_world.row(1)))[0];
 
-	double sx_w = p_world.row(0).sum();
-	double sx2_w = p_world.row(0).squaredNorm();
-	double sy_w = p_world.row(1).sum();
-	double sy2_w = p_world.row(1).squaredNorm();
-	double sxy_ww = p_world.row(0).dot(p_world.row(1));
+	double sx_v = cv::sum(p_view.row(0))[0];
+	double sxx_vw = cv::sum(p_view.row(0).mul(p_world.row(0)))[0];
+	double sxy_vw = cv::sum(p_view.row(0).mul(p_world.row(1)))[0];
+	double sy_v = cv::sum(p_view.row(1))[0];
+	double syy_vw = cv::sum(p_view.row(1).mul(p_world.row(1)))[0];
+	double sxy_wv = cv::sum(p_view.row(1).mul(p_world.row(0)))[0];
 
-	double sx_v = p_view.row(0).sum();
-	double sxx_vw = p_view.row(0).dot(p_world.row(0));
-	double sxy_vw = p_view.row(0).dot(p_world.row(1));
-	double sy_v = p_view.row(1).sum();
-	double syy_vw = p_view.row(1).dot(p_world.row(1));
-	double sxy_wv = p_world.row(0).dot(p_view.row(1));
-
-	Eigen::Matrix3d A;
-	Eigen::Vector3d b1, b2;
-	Eigen::Vector3d t1, t2;
+	cv::Matx33d A;
+	cv::Mat3d b1, b2;
+	cv::Mat3d t1, t2;
 
 	A << sx2_w, sxy_ww, sx_w,
 		sxy_ww, sy2_w, sy_w,
@@ -426,13 +472,13 @@ int MyCamera::getBestTrans(Eigen::MatrixXd p_view, Eigen::MatrixXd p_world) {
 		syy_vw,
 		sy_v;
 
-	t1 = A.inverse() * b1;
-	t2 = A.inverse() * b2;
+	t1 = A.inv() * b1;
+	t2 = A.inv() * b2;
 
 	//std::cout << Trans << std::endl;
 
-	this->trans.row(0) = t1.transpose();
-	this->trans.row(1) = t2.transpose();
+	this->trans.row(0) = t1.t();
+	this->trans.row(1) = t2.t();
 
 	//std::cout << Trans << std::endl;
 
