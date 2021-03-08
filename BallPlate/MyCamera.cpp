@@ -11,6 +11,8 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 	cv::Mat img_proc = img_raw.clone();
 	cv::Mat img_disp;
 
+	cv::GaussianBlur(img_proc, img_proc, cv::Size(5, 5), 10);
+
 	//得到大致圆盘区域
 	double proc_area[3];
 	rtn = getProcArea(img_proc, proc_area);
@@ -27,6 +29,8 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 	mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
 	cv::circle(mask, center, radius, cv::Scalar(255), -1);
 	img_proc.copyTo(img_clp, mask);
+	//cv::imshow("debug",img_clp);
+	//cv::waitKey(0);
 
 	//图像二值化
 	//cv::threshold(img_clp, img_clp, 200, 255, cv::THRESH_BINARY);
@@ -39,7 +43,7 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 		return -1;
 	}
 	//img_disp = img_clp.clone();
-	//for (int i = 0; i < circles_cali.size();i++) {
+	//for (int i = 0; i < (int)circles_cali.size();i++) {
 	//	cv::Point p_center = cv::Point(cvRound(circles_cali[i][0]), cvRound(circles_cali[i][1]));
 	//	cv::circle(img_disp, p_center, 5, cv::Scalar(127), 3);
 	//}
@@ -117,30 +121,25 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 	radius = cvRound(150 * cv::norm(trans.col(0)));
 	mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
 	cv::circle(mask, center, radius, cv::Scalar(255), -1);
-
-	//cv::Mat img_clp_acu;
-	//img_proc.copyTo(img_clp_acu, mask);
-	//cv::imshow("Proc Image", img_clp_acu);
-	//cv::waitKey(0);
 	
 	return 0;
 }
 
-int MyCamera::getBallPosition(cv::Point2d ball_pos, cv::Mat img_raw) {
+int MyCamera::getBallPosition(cv::Point2d &ball_pos, cv::Mat img_raw) {
 
 	cv::Mat img_clp;
 	img_raw.copyTo(img_clp, mask);
 
 	//求取小球相对圆盘坐标
 	std::vector<cv::Vec3f> circle_ball;
-	if (getBallPnt(img_clp, circle_ball, 100, 200, 50, this->radius / 10, this->radius / 7)) {
+	if (getBallPnt(img_clp, circle_ball, 100, 200, 50, radius / 10, radius / 7)) {
 		std::cout << "No ball detected!" << std::endl;
-		return 0;
+		return -1;
 	}
 	cv::Mat ball_vec1(3, 1, CV_64FC1), ball_vec2(3, 1, CV_64FC1);
-	ball_vec1.at<double>(0, 0) = circle_ball[0][0];
-	ball_vec1.at<double>(0, 1) = circle_ball[0][1];
-	ball_vec1.at<double>(0, 2) = 1;
+	ball_vec1.at<double>(0, 0) = (double)circle_ball[0].val[0];
+	ball_vec1.at<double>(1, 0) = (double)circle_ball[0].val[1];
+	ball_vec1.at<double>(2, 0) = 1;
 
 	//cv::Mat img_disp = img_raw.clone();
 	//cv::circle(img_disp, cv::Point(ball_vec1(0), ball_vec1(1)), 2, cv::Scalar(0), 3);
@@ -151,7 +150,7 @@ int MyCamera::getBallPosition(cv::Point2d ball_pos, cv::Mat img_raw) {
 	ball_vec2 = transInv * ball_vec1;
 
 	ball_pos.x = ball_vec2.at<double>(0, 0);
-	ball_pos.y = ball_vec2.at<double>(0, 1);
+	ball_pos.y = ball_vec2.at<double>(1, 0);
 
 	return 0;
 }
@@ -167,6 +166,9 @@ int MyCamera::drawPoint(cv::Mat img_raw, cv::Mat &img_disp, cv::Point2d p_world,
 }
 
 int MyCamera::getMask(cv::Mat& mask) {
+
+	//cv::imshow("debug", this->mask);
+	//cv::waitKey(0);
 	mask = this->mask.clone();
 
 	return 0;
@@ -242,9 +244,9 @@ int MyCamera::getProcArea(cv::Mat img_raw, double proc_area[3], double mindist, 
 		}
 	}
 
-	proc_area[0] = circles[0][0] * k;
-	proc_area[1] = circles[0][1] * k;
-	proc_area[2] = circles[0][2] * k;
+	proc_area[0] = (double)circles[0][0] * k;
+	proc_area[1] = (double)circles[0][1] * k;
+	proc_area[2] = (double)circles[0][2] * k;
 
 	return 0;
 }
@@ -382,55 +384,67 @@ int MyCamera::getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, doub
 	return 0;
 }
 
-void MyCamera::removeColumn(cv::Mat matrix, unsigned int colToRemove)
+int MyCamera::removeColumn(cv::Mat &matrix, unsigned int colToRemove)
 {
-	matrix = cv::Mat::eye(3, 2, CV_8UC1);
-	cv::Mat dst;
-	for (int i = 0;i < matrix.rows;i++) {
+	if (colToRemove < 0 || colToRemove >= (uint)matrix.cols || matrix.cols <= 0) {
+		return -1;
+	}
+
+	cv::Mat tmp(matrix.rows, matrix.cols - 1, CV_64FC1);
+	
+	int j = 0;
+	for (int i = 0;i < matrix.cols;i++) {
 		if (i != colToRemove){
-			dst.push_back(matrix.row(i));
+			matrix.col(i).copyTo(tmp.col(j));
+			j++;
 		}
 	}
-	matrix = dst.clone();
+	matrix = tmp.clone();
+
+	return 0;
 }
 
-int MyCamera::findNearest(cv::Mat p_set1, cv::Mat p_set2, double thres) {
+int MyCamera::findNearest(cv::Mat &p_set1, cv::Mat &p_set2, double thres) {
 
 	cv::Mat p_mat1 = cv::Mat::zeros(p_set1.rows, p_set1.cols, CV_64FC1);
 	cv::Mat p_mat2 = cv::Mat::zeros(p_set2.rows, p_set2.cols, CV_64FC1);
 
+	cv::Mat p_set2_trans = trans * p_set2;
 	int match_num = 0;
 
 	double dist, mindist;
 	unsigned int minindex;
+	int rtn = 0;
 	for (int i = 0; i < p_set1.cols; ) {
-		mindist = cv::norm(p_set1.col(i) - this->trans * p_set2.col(0));
+		mindist = cv::norm(p_set1.col(i) - p_set2_trans.col(i));
 		minindex = 0;
 		for (int j = 1;j < p_set2.cols; j++) {
 
-			dist = cv::norm(p_set1.col(i) - this->trans * p_set2.col(j));
+			dist = cv::norm(p_set1.col(i) - p_set2_trans.col(j));
 			if (dist < mindist) {
 				mindist = dist;
 				minindex = j;
 			}
 		}
 		if (mindist < thres) {
-			p_mat1.col(match_num) = p_set1.col(i);
-			p_mat2.col(match_num) = p_set2.col(minindex);
+			p_set1.col(i).copyTo(p_mat1.col(match_num));
+			p_set2.col(minindex).copyTo(p_mat2.col(match_num));
 			match_num++;
 
-			removeColumn(p_set1, i);
-			removeColumn(p_set2, minindex);
+			rtn |= removeColumn(p_set1, i);
+			rtn |= removeColumn(p_set2, minindex);
+			rtn |= removeColumn(p_set2_trans, minindex);
+			if (rtn) {
+				return -1;
+			}
 		}
 		else {
 			i++;
 		}
 	}
 
-	for (int i = 0;i < match_num;i++) {
-		p_set1.push_back(p_mat1.row(i));
-		p_set2.push_back(p_mat2.row(i));
-	}
+	p_set1 = p_mat1.clone();
+	p_set2 = p_mat2.clone();
 
 	return 0;
 }
@@ -457,8 +471,8 @@ int MyCamera::getBestTrans(cv::Mat p_view, cv::Mat p_world) {
 	double sxy_wv = cv::sum(p_view.row(1).mul(p_world.row(0)))[0];
 
 	cv::Matx33d A;
-	cv::Mat3d b1, b2;
-	cv::Mat3d t1, t2;
+	cv::Matx31d b1, b2;
+	cv::Mat t1, t2;
 
 	A << sx2_w, sxy_ww, sx_w,
 		sxy_ww, sy2_w, sy_w,
@@ -472,13 +486,16 @@ int MyCamera::getBestTrans(cv::Mat p_view, cv::Mat p_world) {
 		syy_vw,
 		sy_v;
 
-	t1 = A.inv() * b1;
-	t2 = A.inv() * b2;
+	t1 = cv::Mat(A.inv() * b1);
+	t2 = cv::Mat(A.inv() * b2);
 
 	//std::cout << Trans << std::endl;
 
-	this->trans.row(0) = t1.t();
-	this->trans.row(1) = t2.t();
+	cv::Mat t1t = t1.t();
+	cv::Mat t2t = t2.t();
+
+	t1t.copyTo(trans.row(0));
+	t2t.copyTo(trans.row(1));
 
 	//std::cout << Trans << std::endl;
 

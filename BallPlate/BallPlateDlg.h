@@ -20,10 +20,10 @@ public:
 	CBallPlateDlg(CWnd* pParent = nullptr);	// 标准构造函数
 	int Array2Mat(BYTE* array, cv::Mat& img, int width, int height);
 	int Mat2CImage(cv::Mat* mat, CImage& img);
-	void MyOnPaint(void) { OnPaint(); };
 
 	inline UINT64 GetCycleCount();
 	void GetCPUFrequency();
+
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
@@ -41,8 +41,8 @@ protected:
 	// 生成的消息映射函数
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
-	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg void OnPaint();
 	DECLARE_MESSAGE_MAP()
 public:
 	double m_CPUFrequency;
@@ -56,8 +56,6 @@ public:
 	MotionControl m_XCtrl;
 	MotionControl m_YCtrl;
 
-	std::thread thGrab;
-	std::thread thSave;
 
 	BYTE* m_array;				//测试用数组
 	cv::Mat mask;

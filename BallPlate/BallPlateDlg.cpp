@@ -57,7 +57,7 @@ void GrabCam(CBallPlateDlg* proc) {
 		proc->Array2Mat(proc->m_MilVision.m_pDataArray, proc->img_raw, 576, 768);
 
 		if (proc->m_MyCamera.getBallPosition(proc->m_BallPos, proc->img_raw)) {
-			AfxMessageBox(TEXT("No Ball Detected!"));
+			//AfxMessageBox(TEXT("No Ball Detected!"));
 			proc->img_raw.copyTo(proc->img_disp);
 		}
 		else {
@@ -70,8 +70,6 @@ void GrabCam(CBallPlateDlg* proc) {
 		t2 = proc->GetCycleCount();
 		proc->m_TimeText.Format("%.1fms", (t2 - t1) * 1000.0 / proc->m_CPUFrequency);
 		t1 = t2;
-
-		proc->MyOnPaint();
 	}
 }
 
@@ -82,7 +80,7 @@ void SaveData(CBallPlateDlg *proc) {
 	localtime_s(&LocTime, &tim);
 
 	CString FileName;
-	FileName.Format("data_%d_%d_%d_%d_%d_%d.csv",
+	FileName.Format("../data/data_%d_%d_%d_%d_%d_%d.csv",
 		LocTime.tm_year + 1900,
 		LocTime.tm_mon + 1,
 		LocTime.tm_mday,
@@ -236,8 +234,8 @@ BOOL CBallPlateDlg::OnInitDialog()
 	double t1;
 	t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
 
-	m_XCtrl.InitParams(0.0, 3.0, 0.1, 20.0, t1);
-	m_YCtrl.InitParams(0.0, 3.0, 0.1, 20.0, t1);
+	m_XCtrl.InitParams(0.0, 7.0, 0.3, 0.2, t1);
+	m_YCtrl.InitParams(0.0, 7.0, 0.3, 0.2, t1);
 
 
 	int sRtn = 0;
@@ -301,8 +299,7 @@ BOOL CBallPlateDlg::OnInitDialog()
 	if (CommandHandler("GT_AxisOn", sRtn))
 		return 0;
 
-	thGrab = std::thread(GrabCam, this);
-	thSave = std::thread(SaveData, this);
+
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -421,9 +418,15 @@ void CBallPlateDlg::OnBnClickedButtonCaliImage()
 	m_MyCamera.caliImage(img_raw);
 	m_MyCamera.saveParams(f_CamParams);
 	m_MyCamera.getMask(mask);
+
+	img_disp = cv::Mat();
+	img_raw.copyTo(img_disp, mask);
+
 	t2 = GetCycleCount();
 	str.Format(TEXT("use time: %fms"), (t2 - t1) * 1000.0 / m_CPUFrequency);
 	MessageBox(str);
+
+	OnPaint();
 }
 
 
@@ -444,8 +447,8 @@ void CBallPlateDlg::OnBnClickedButtonBallPos()
 	//y = m_BallPos(1);
 	//str.Format(TEXT("x = %.1fmm, y = %.1fmm"), x, y);
 	//MessageBox(str);
-	img_proc.copyTo(img_proc, mask);
-	img_disp = img_proc.clone();
+	img_disp = cv::Mat();
+	img_proc.copyTo(img_disp, mask);
 	OnPaint();
 }
 
@@ -467,7 +470,12 @@ void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 	m_MyCamera.readParams(f_CamParams);
 	SetTimer(1, 60, NULL);
 
+	std::thread thGrab;
+	thGrab = std::thread(GrabCam, this);
 	thGrab.detach();
+
+	std::thread thSave;
+	thSave = std::thread(SaveData, this);
 	thSave.detach();
 }
 
@@ -488,7 +496,7 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 		memset(&crdPrm, 0, sizeof(crdPrm));
 		crdPrm.dimension = 2;
 		crdPrm.synVelMax = 20;
-		crdPrm.synAccMax = 0.4;
+		crdPrm.synAccMax = 0.3;
 		crdPrm.evenTime = 5;
 		crdPrm.profile[0] = 1;
 		crdPrm.profile[1] = 2;
@@ -499,7 +507,7 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 		GT_GetEncPos(1, &XEnc);
 		GT_GetEncPos(2, &YEnc);
 
-		rtn = GT_LnXY(1, (long)(m_XCtrl.Output - XEnc), (long)(m_YCtrl.Output - YEnc), 20, 0.4, 0, 0);
+		rtn = GT_LnXY(1, (long)(m_XCtrl.Output - XEnc), (long)(m_YCtrl.Output - YEnc), 20, 0.3, 0, 0);
 		rtn = GT_CrdStart(1, 0);
 
 		m_XCtrlText.Format("%.0f  %.0f", m_XCtrl.Output, XEnc);

@@ -10,7 +10,7 @@ public:
 	~MyCamera();
 
 	int caliImage(cv::Mat img_raw);
-	int getBallPosition(cv::Point2d ball_pos, cv::Mat img_raw);
+	int getBallPosition(cv::Point2d &ball_pos, cv::Mat img_raw);
 	int drawPoint(cv::Mat img_raw, cv::Mat &img_disp, cv::Point2d p_world, cv::Scalar color = cv::Scalar(127),int radius = 2,int thickness = 3);
 	int getMask(cv::Mat &mask);
 	
@@ -24,11 +24,11 @@ private:
 	cv::Mat mask;
 	cv::Mat trans;
 
-	int getProcArea(cv::Mat img_raw, double proc_area[3], double mindist = 100, double param1 = 220, double param2 = 100, double minradius = 200, double maxradius = 400);
+	int getProcArea(cv::Mat img_raw, double proc_area[3], double mindist = 100, double param1 = 220, double param2 = 130, double minradius = 250, double maxradius = 320);
 	int getCaliPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &circles, double mindist = 50, double param1 = 200, double param2 = 10, int minRadius = 0, int maxRadius = 20);
 	int getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, double mindist = 50, double param1 = 200, double param2 = 50, int minRadius = 20, int maxRadius = 40);
-	void removeColumn(cv::Mat matrix, unsigned int colToRemove);
-	int findNearest(cv::Mat p_set1, cv::Mat p_set2, double thres = 50);
+	int removeColumn(cv::Mat &matrix, unsigned int colToRemove);
+	int findNearest(cv::Mat &p_set1, cv::Mat &p_set2, double thres = 60);
 	int getBestTrans(cv::Mat p_view, cv::Mat p_world);
 
 };
