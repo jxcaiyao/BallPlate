@@ -234,8 +234,8 @@ BOOL CBallPlateDlg::OnInitDialog()
 	double t1;
 	t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
 
-	m_XCtrl.InitParams(0.0, 5.0, 1, 1.0, t1);
-	m_YCtrl.InitParams(0.0, 5.0, 1, 1.0, t1);
+	m_XCtrl.InitParams(0.0, 5.0, 1, 1.0, t1, 0.03);
+	m_YCtrl.InitParams(0.0, 5.0, 1, 1.0, t1, 0.03);
 
 
 	int sRtn = 0;

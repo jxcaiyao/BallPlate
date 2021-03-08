@@ -9,7 +9,7 @@ MotionControl::~MotionControl()
 {
 }
 
-void MotionControl::InitParams(double m_BallPosExpt, double Kp, double Ki, double Kd, double TNow)
+void MotionControl::InitParams(double m_BallPosExpt, double Kp, double Ki, double Kd, double TNow, double coffFilter)
 {
 	this->m_BallPosExpt = m_BallPosExpt;
 	this->Kp = Kp;
@@ -20,6 +20,8 @@ void MotionControl::InitParams(double m_BallPosExpt, double Kp, double Ki, doubl
 	this->Err = 0;
 	this->ErrLast = 0;
 	this->ErrSum = 0;
+
+	this->coffFilter = coffFilter;
 }
 
 void MotionControl::InitMotor(void)
@@ -110,6 +112,9 @@ void MotionControl::ControlUpdate(double m_BallPos, double TNow)
 
 	I = min(fabs(I), 1500) * (I > 0 ? 1 : -1) * (Err > 10 ? 0 : 1);
 
-	Output = P + I + D;
-	Output = min(fabs(Output), 1500) * (Output > 0 ? 1 : -1);
+	double tmpOut;
+	tmpOut = P + I + D;
+	tmpOut = min(fabs(tmpOut), 1500) * (tmpOut > 0 ? 1 : -1);
+
+	Output += coffFilter * (tmpOut - Output);
 }
