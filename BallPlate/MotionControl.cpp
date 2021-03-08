@@ -102,13 +102,14 @@ void MotionControl::ControlUpdate(double m_BallPos, double TNow)
 	ErrLast = Err;
 	Err = m_BallPosExpt - m_BallPos;
 	ErrSum += Err;
+	ErrSum = min(fabs(ErrSum), 3000) * (ErrSum > 0 ? 1 : -1);
 
 	P = Kp * Err;
 	I = Ki * T / 1000 * ErrSum;
 	D = Kd / T * 1000 * (Err - ErrLast);
 
-	I = min(fabs(I), 1000) * (I > 0 ? 1 : -1) * (Err > 10 ? 0 : 1);
+	I = min(fabs(I), 1500) * (I > 0 ? 1 : -1) * (Err > 10 ? 0 : 1);
 
 	Output = P + I + D;
-	Output = min(fabs(Output), 1000) * (Output > 0 ? 1 : -1);
+	Output = min(fabs(Output), 1500) * (Output > 0 ? 1 : -1);
 }
