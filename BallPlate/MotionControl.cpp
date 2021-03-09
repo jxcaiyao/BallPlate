@@ -15,7 +15,7 @@ void MotionControl::InitParams(double m_BallPosExpt, double Kp, double Ki, doubl
 	this->Kp = Kp;
 	this->Ki = Ki;
 	this->Kd = Kd;
-	this->TLast = TNow;
+	this->TNow = TNow;
 
 	this->Err = 0;
 	this->ErrLast = 0;
@@ -97,7 +97,7 @@ void MotionControl::ControlUpdate(double m_BallPos, double TNow)
 	this->T = this->TNow - this->TLast;
 
 	if (T > 200) {
-		Output = 0;
+		Output += 0;
 		return;
 	}
 
@@ -110,11 +110,13 @@ void MotionControl::ControlUpdate(double m_BallPos, double TNow)
 	I = Ki * T / 1000 * ErrSum;
 	D = Kd / T * 1000 * (Err - ErrLast);
 
-	I = min(fabs(I), 1500) * (I > 0 ? 1 : -1) * (Err > 10 ? 0 : 1);
+	I = min(fabs(I), 1500) * (I > 0 ? 1 : -1) * (Err > 50 ? 0 : 1);
 
-	double tmpOut;
+	double tmpOut, dout;
 	tmpOut = P + I + D;
 	tmpOut = min(fabs(tmpOut), 1500) * (tmpOut > 0 ? 1 : -1);
 
-	Output += coffFilter * (tmpOut - Output);
+	dout = coffFilter * (tmpOut - Output);
+	dout = fabs(dout) < 200 ? dout : (dout > 0 ? 200 : -200);
+	Output += dout;
 }

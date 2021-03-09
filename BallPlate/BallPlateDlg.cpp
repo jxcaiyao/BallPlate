@@ -95,6 +95,8 @@ void SaveData(CBallPlateDlg *proc) {
 	fout << "Y_Kp," << proc->m_YCtrl.Kp << ",Y_Ki," << proc->m_YCtrl.Ki << ",Y_Kd," << proc->m_YCtrl.Kd << std::endl;
 	fout << std::endl;
 
+	fout << "t,xpos,ypos,xctrl,yctrl,xenc,yenc" << std::endl;
+
 	UINT64 t3, t4;
 	double XEnc, YEnc;
 
@@ -231,11 +233,6 @@ BOOL CBallPlateDlg::OnInitDialog()
 	//显示图像
 	//m_MilVision.GrabContinuous(m_Image);
 
-	double t1;
-	t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
-
-	m_XCtrl.InitParams(0.0, 5.0, 1, 1.0, t1, 0.03);
-	m_YCtrl.InitParams(0.0, 5.0, 1, 1.0, t1, 0.03);
 
 
 	int sRtn = 0;
@@ -467,8 +464,14 @@ void CBallPlateDlg::OnBnClickedButtonContinue()
 void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 {
 	// TODO: 在此添加控件通知处理程序代码
+
+	double t1;
+	t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
+
+	m_XCtrl.InitParams(0, 5, 2, 3, t1, 1);
+	m_YCtrl.InitParams(0, 5, 2, 3, t1, 1);
+
 	m_MyCamera.readParams(f_CamParams);
-	SetTimer(1, 60, NULL);
 
 	std::thread thGrab;
 	thGrab = std::thread(GrabCam, this);
@@ -477,6 +480,14 @@ void CBallPlateDlg::OnBnClickedButtonContinuePosition()
 	std::thread thSave;
 	thSave = std::thread(SaveData, this);
 	thSave.detach();
+
+	//Sleep(60);
+	//t1 = GetCycleCount() * 1000.0 / m_CPUFrequency;
+	//m_XCtrl.ControlUpdate(m_BallPos.x, t1);
+	//m_YCtrl.ControlUpdate(m_BallPos.y, t1);
+	SetTimer(1, 60, NULL);
+
+
 }
 
 
@@ -495,8 +506,8 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 		TCrdPrm crdPrm;
 		memset(&crdPrm, 0, sizeof(crdPrm));
 		crdPrm.dimension = 2;
-		crdPrm.synVelMax = 20;
-		crdPrm.synAccMax = 0.3;
+		crdPrm.synVelMax = 60;
+		crdPrm.synAccMax = 0.4;
 		crdPrm.evenTime = 5;
 		crdPrm.profile[0] = 1;
 		crdPrm.profile[1] = 2;
@@ -507,7 +518,7 @@ void CBallPlateDlg::OnTimer(UINT_PTR nIDEvent)
 		GT_GetEncPos(1, &XEnc);
 		GT_GetEncPos(2, &YEnc);
 
-		rtn = GT_LnXY(1, (long)(m_XCtrl.Output - XEnc), (long)(m_YCtrl.Output - YEnc), 20, 0.3, 0, 0);
+		rtn = GT_LnXY(1, (long)(m_XCtrl.Output - XEnc), (long)(m_YCtrl.Output - YEnc), 60, 0.4, 0, 0);
 		rtn = GT_CrdStart(1, 0);
 
 		m_XCtrlText.Format("%.0f  %.0f", m_XCtrl.Output, XEnc);
