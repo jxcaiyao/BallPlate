@@ -1,6 +1,6 @@
 #pragma once
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/imgproc/imgproc.hpp"
+
+#include "opencv2/opencv.hpp"
 
 //负责相机标定与小球位置测算
 class MyCamera
@@ -23,12 +23,16 @@ private:
 	int radius;
 	cv::Mat mask;
 	cv::Mat trans;
+	cv::Mat cameraMatrix;
+	cv::Mat distCoeffs;
+	cv::Mat rvec;
+	cv::Mat tvec;
 
 	int getProcArea(cv::Mat img_raw, double proc_area[3], double mindist = 100, double param1 = 220, double param2 = 130, double minradius = 250, double maxradius = 320);
 	int getCaliPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &circles, double mindist = 50, double param1 = 200, double param2 = 10, int minRadius = 0, int maxRadius = 20);
 	int getBallPnt(cv::Mat img_clp, std::vector<cv::Vec3f> &ball_pos, double mindist = 50, double param1 = 200, double param2 = 50, int minRadius = 20, int maxRadius = 40);
 	int removeColumn(cv::Mat &matrix, unsigned int colToRemove);
-	int findNearest(cv::Mat &p_set1, cv::Mat &p_set2, double thres = 60);
+	int findNearest(cv::Mat &p_img, cv::Mat &p_obj, double thres = 60);
 	int getBestTrans(cv::Mat p_view, cv::Mat p_world);
 
 };

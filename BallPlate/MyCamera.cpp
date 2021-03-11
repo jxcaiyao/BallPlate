@@ -42,9 +42,22 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 		std::cout << "Bad parameters for getCaliPnt!" << std::endl;
 		return -1;
 	}
-	//img_disp = img_clp.clone();
+
+	std::vector<cv::Point2d> pnt_img_dist, pnt_img;
+	for (int i = 0; i < (int)circles_cali.size();i++) {
+		pnt_img_dist.push_back(cv::Point2d((double)circles_cali[i][0], (double)circles_cali[i][1]));
+	}
+
+	//求取相机参数
+	cv::FileStorage fread;
+	fread.open("../CaliPic/cameraParams.yaml", cv::FileStorage::READ);
+	fread["camera_matrix"] >> cameraMatrix;
+	fread["distortion_coefficients"] >> distCoeffs;
+
+	cv::undistortPoints(pnt_img_dist, pnt_img, cameraMatrix, distCoeffs, cv::noArray(), cameraMatrix);
+	//cv::undistort(img_clp, img_disp, cameraMatrix, distCoeffs);
 	//for (int i = 0; i < (int)circles_cali.size();i++) {
-	//	cv::Point p_center = cv::Point(cvRound(circles_cali[i][0]), cvRound(circles_cali[i][1]));
+	//	cv::Point p_center = cv::Point(cvRound(pnt_img[i].x), cvRound(pnt_img[i].y));
 	//	cv::circle(img_disp, p_center, 5, cv::Scalar(127), 3);
 	//}
 	//cv::imshow("Proc Image", img_disp);
@@ -61,67 +74,61 @@ int MyCamera::caliImage(cv::Mat img_raw) {
 	trans.at<double>(0, 2) = center.x;
 	trans.at<double>(1, 2) = center.y;
 
-	cv::Matx<double,3,9> pnt_exp;
-	pnt_exp <<	-120,	-60,	0,		-60,	0,		60,		0,		60,		120,
-				0,		60,		120,	-60,	0,		60,		-120,	-60,	0,
-				1,		1,		1,		1,		1,		1,		1,		1,		1;
-
-	cv::Mat pnt_tru = cv::Mat::zeros(3, circles_cali.size(), CV_64FC1);
-	for (int i = 0; i < (int)circles_cali.size();i++) {
-		pnt_tru.at<double>(0, i) = (double)circles_cali[i][0];
-		pnt_tru.at<double>(1, i) = (double)circles_cali[i][1];
-		pnt_tru.at<double>(2, i) = 1;
-	}
+	cv::Matx<double, 3, 9> pnt_obj;
+	pnt_obj << -120, -60, 0, -60, 0, 60, 0, 60, 120,
+		0, 60, 120, -60, 0, 60, -120, -60, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0;
 
 	//匹配特征点，除去距离过大的点
-	cv::Mat pnt_tru_match(pnt_tru), pnt_exp_match(pnt_exp);
+	cv::Mat pnt_img_match = cv::Mat(2, pnt_img_dist.size(), CV_64FC1);
+	cv::Mat pnt_obj_match(pnt_obj);
+	for (int i = 0;i < (int)pnt_img_dist.size();i++) {
+		pnt_img_match.at<double>(0, i) = pnt_img_dist[i].x;
+		pnt_img_match.at<double>(1, i) = pnt_img_dist[i].y;
+	}
 
-	rtn = findNearest(pnt_tru_match, pnt_exp_match);
+	rtn = findNearest(pnt_img_match, pnt_obj_match);
 	if (rtn) {
 		std::cout << "findNearest false!" << std::endl;
 		return -1;
 	}
 
-	if (pnt_tru_match.cols < 6) {
+	if (pnt_img_match.cols < 6) {
 		std::cout << "Not enough match point!" << std::endl;
 		return -1;
 	}
+	
+	cv::solvePnPRansac(pnt_obj_match.t(), pnt_img_match.t(), cameraMatrix, distCoeffs, rvec, tvec);
 
-	//img_disp = img_clp.clone();
-	//cv::Point pt1, pt2;
-	//for (int i = 0;i < pnt_tru_match.cols();i++) {
-	//	pt1.x = cvRound(pnt_tru_match(0, i));
-	//	pt1.y = cvRound(pnt_tru_match(1, i));
-	//	pt2.x = cvRound(pnt_exp_match(0, i));
-	//	pt2.y = cvRound(pnt_exp_match(1, i));
-
-	//	cv::line(img_disp, pt1, pt2, cv::Scalar(127), 2);
-	//}
-	//cv::imshow("Proc Image", img_disp);
+	//cv::Mat pnt_tmp = cv::Mat::zeros(3, 1, CV_64FC1);
+	//pnt_tmp.at<double>(0, 0) = 0;
+	//cv::Mat R;
+	//cv::Rodrigues(rvec, R);
+	//cv::Mat pnt_tmp2 = cameraMatrix * (R * pnt_tmp + tvec);
+	//double s = pnt_tmp2.at<double>(2, 0);
+	//cv::Point pnt_tmp3;
+	//pnt_tmp3.x = pnt_tmp2.at<double>(0, 0) / s;
+	//pnt_tmp3.y = pnt_tmp2.at<double>(1, 0) / s;
+	//cv::Mat img_debug;
+	//cv::undistort(img_raw, img_debug, cameraMatrix, distCoeffs);
+	//cv::circle(img_debug, pnt_tmp3, 3, cv::Scalar(127), 2);
+	//cv::imshow("debug", img_debug);
 	//cv::waitKey(0);
 
-	//std::cout << pnt_tru_match << std::endl;
+	cv::Mat center_tmp;
+	center_tmp = cameraMatrix * tvec;
+	double s = center_tmp.at<double>(2, 0);
+	center.x = center_tmp.at<double>(0, 0) / s;
+	center.y = center_tmp.at<double>(1, 0) / s;
 
-	//求取精确变换矩阵
-	rtn = getBestTrans(pnt_tru_match, pnt_exp_match);
-	if (rtn) {
-		std::cout << "getBestTrans false!" << std::endl;
-		return -1;
-	}
-	//cv::Point center_acu;
-	//center_acu.x = cvRound(trans(0, 2));
-	//center_acu.y = cvRound(trans(1, 2));
-	//img_disp = img_clp.clone();
-	//cv::circle(img_disp, center_acu, 3, cv::Scalar(127), 3);
-	//cv::imshow("Proc Image", img_disp);
-	//cv::waitKey(0);
-
-	center.x = cvRound(trans.at<double>(0, 2));
-	center.y = cvRound(trans.at<double>(1, 2));
-	radius = cvRound(150 * cv::norm(trans.col(0)));
 	mask = cv::Mat::zeros(img_proc.size(), CV_8UC1);
 	cv::circle(mask, center, radius, cv::Scalar(255), -1);
-	
+
+	//cv::Mat img_debug;
+	//img_raw.copyTo(img_debug, mask);
+	//cv::imshow("debug", img_debug);
+	//cv::waitKey(0);
+
 	return 0;
 }
 
@@ -183,13 +190,17 @@ int MyCamera::saveParams(const char* FileName)
 	struct tm* t2 = new tm();
 	localtime_s(t2, &tt);
 	char strTime[50];
-	asctime_s(strTime, sizeof(strTime) - 1, t2);
+	strftime(strTime, sizeof(strTime) - 1, "%c", t2);
 
 	fs << "calibration_time" << strTime;
 	fs << "imageSize" << imageSize;
 	fs << "center" << center;
 	fs << "radius" << radius;
 	fs << "trans" << trans;
+	fs << "cameraMatrix" << cameraMatrix;
+	fs << "distCoeffs" << distCoeffs;
+	fs << "rvec" << rvec;
+	fs << "tvec" << tvec;
 
 	fs.release();
 
@@ -207,6 +218,10 @@ int MyCamera::readParams(const char* FileName)
 	fs["center"] >> center;
 	fs["radius"] >> radius;
 	fs["trans"] >> trans;
+	fs["cameraMatrix"] >> cameraMatrix;
+	fs["distCoeffs"] >> distCoeffs;
+	fs["rvec"] >> rvec;
+	fs["tvec"] >> tvec;
 
 	mask = cv::Mat::zeros(imageSize, CV_8UC1);
 	cv::circle(mask, center, radius, cv::Scalar(255), -1);
@@ -404,36 +419,44 @@ int MyCamera::removeColumn(cv::Mat &matrix, unsigned int colToRemove)
 	return 0;
 }
 
-int MyCamera::findNearest(cv::Mat &p_set1, cv::Mat &p_set2, double thres) {
+int MyCamera::findNearest(cv::Mat &p_img, cv::Mat &p_obj, double thres) {
 
-	cv::Mat p_mat1 = cv::Mat::zeros(p_set1.rows, p_set1.cols, CV_64FC1);
-	cv::Mat p_mat2 = cv::Mat::zeros(p_set2.rows, p_set2.cols, CV_64FC1);
+	cv::Mat p_img_tmp;
+	cv::Mat p_obj_tmp;
 
-	cv::Mat p_set2_trans = trans * p_set2;
+	cv::Rect rectR(0, 0, 2, 2), rectP(2, 0, 1, 2);
+	cv::Mat R = trans(rectR);
+	cv::Mat P = trans(rectP);
+	cv::Mat p_obj2d = p_obj.rowRange(0, 2);
+	cv::Mat p_obj_trans = R * p_obj2d + P * cv::Mat::ones(1, p_obj.cols, CV_64FC1);
 	int match_num = 0;
 
 	double dist, mindist;
 	unsigned int minindex;
 	int rtn = 0;
-	for (int i = 0; i < p_set1.cols; ) {
-		mindist = cv::norm(p_set1.col(i) - p_set2_trans.col(i));
+	for (int i = 0; i < p_img.cols; ) {
+		mindist = cv::norm(p_img.col(i) - p_obj_trans.col(i));
 		minindex = 0;
-		for (int j = 1;j < p_set2.cols; j++) {
+		for (int j = 1;j < p_obj.cols; j++) {
 
-			dist = cv::norm(p_set1.col(i) - p_set2_trans.col(j));
+			dist = cv::norm(p_img.col(i) - p_obj_trans.col(j));
 			if (dist < mindist) {
 				mindist = dist;
 				minindex = j;
 			}
 		}
 		if (mindist < thres) {
-			p_set1.col(i).copyTo(p_mat1.col(match_num));
-			p_set2.col(minindex).copyTo(p_mat2.col(match_num));
+			//p_img.col(i).copyTo(p_img_tmp.col(match_num));
+			//p_obj.col(minindex).copyTo(p_obj_tmp.col(match_num));
+
+			p_img_tmp.push_back(p_img.col(i).t());
+			p_obj_tmp.push_back(p_obj.col(minindex).t());
+
 			match_num++;
 
-			rtn |= removeColumn(p_set1, i);
-			rtn |= removeColumn(p_set2, minindex);
-			rtn |= removeColumn(p_set2_trans, minindex);
+			rtn |= removeColumn(p_img, i);
+			rtn |= removeColumn(p_obj, minindex);
+			rtn |= removeColumn(p_obj_trans, minindex);
 			if (rtn) {
 				return -1;
 			}
@@ -443,8 +466,8 @@ int MyCamera::findNearest(cv::Mat &p_set1, cv::Mat &p_set2, double thres) {
 		}
 	}
 
-	p_set1 = p_mat1.clone();
-	p_set2 = p_mat2.clone();
+	p_img = p_img_tmp.t();
+	p_obj = p_obj_tmp.t();
 
 	return 0;
 }
