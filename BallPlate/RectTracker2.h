@@ -12,18 +12,18 @@
 class CRectTracker2 : public CRectTracker  
 {
 public:
-	CRectTracker2();
-	virtual ~CRectTracker2();
+    CRectTracker2();
+    virtual ~CRectTracker2();
 
 public:
-	virtual void DrawTrackerRect(LPCRECT lpRect, CWnd* pWndClipTo,
-								CDC* pDC, CWnd* pWnd);
-	void Draw2(CDC* pDC) const;
+    virtual void DrawTrackerRect(LPCRECT lpRect, CWnd* pWndClipTo,
+                                CDC* pDC, CWnd* pWnd);
+    void Draw2(CDC* pDC) const;
 
 public:
-	long			m_lStrokeWidth;
-	COLORREF		m_Color;
-	CString			m_strTitle;
+    long			m_lStrokeWidth;
+    COLORREF		m_Color;
+    CString			m_strTitle;
 };
 
 #endif // !defined(AFX_RECTTRACKER2_H__4BB8FB79_7D88_48D6_9747_B221DB0EC83B__INCLUDED_)

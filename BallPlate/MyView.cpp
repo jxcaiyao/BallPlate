@@ -26,10 +26,10 @@ CMyView::~CMyView()
 
 
 BEGIN_MESSAGE_MAP(CMyView, CWnd)
-	//{{AFX_MSG_MAP(CMyView)
-	ON_WM_LBUTTONDOWN()
-	ON_WM_PAINT()
-	//}}AFX_MSG_MAP
+    //{{AFX_MSG_MAP(CMyView)
+    ON_WM_LBUTTONDOWN()
+    ON_WM_PAINT()
+    //}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -37,11 +37,11 @@ END_MESSAGE_MAP()
 void CMyView::OnDraw(CDC *pDC)
 {
    if( pDC == NULL )
-		return ;
+        return ;
 
 }
 
 BOOL CMyView::Create(LPCTSTR lpszClassName, LPCTSTR lpszWindowName, DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID, CCreateContext* pContext) 
 {
-	return CWnd::Create(lpszClassName, lpszWindowName, dwStyle, rect, pParentWnd, nID, pContext);
+    return CWnd::Create(lpszClassName, lpszWindowName, dwStyle, rect, pParentWnd, nID, pContext);
 }

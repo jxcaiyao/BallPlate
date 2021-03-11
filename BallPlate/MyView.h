@@ -12,25 +12,25 @@ class CMyView : public CWnd
 {
 // Construction
 public:
-	CMyView();           // protected constructor used by dynamic creation
-	virtual ~CMyView();
-	//DECLARE_DYNCREATE(CMyView)
+    CMyView();           // protected constructor used by dynamic creation
+    virtual ~CMyView();
+    //DECLARE_DYNCREATE(CMyView)
 
 // Attributes
 public:
 
 // Overrides
-	// ClassWizard generated virtual function overrides
-	//{{AFX_VIRTUAL(CMyView)
-	//protected:
-	virtual BOOL Create(LPCTSTR lpszClassName, LPCTSTR lpszWindowName, DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID, CCreateContext* pContext = NULL);
-	//}}AFX_VIRTUAL
+    // ClassWizard generated virtual function overrides
+    //{{AFX_VIRTUAL(CMyView)
+    //protected:
+    virtual BOOL Create(LPCTSTR lpszClassName, LPCTSTR lpszWindowName, DWORD dwStyle, const RECT& rect, CWnd* pParentWnd, UINT nID, CCreateContext* pContext = NULL);
+    //}}AFX_VIRTUAL
 
 protected:	
-	virtual void	OnDraw(CDC* pDC);
+    virtual void	OnDraw(CDC* pDC);
 
-	//}}AFX_MSG
-	DECLARE_MESSAGE_MAP()
+    //}}AFX_MSG
+    DECLARE_MESSAGE_MAP()
 
 };
 

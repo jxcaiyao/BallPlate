@@ -17,65 +17,65 @@ class CBallPlateDlg : public CDialogEx
 {
 // 构造
 public:
-	CBallPlateDlg(CWnd* pParent = nullptr);	// 标准构造函数
-	int Array2Mat(BYTE* array, cv::Mat& img, int width, int height);
-	int Mat2CImage(cv::Mat* mat, CImage& img);
+    CBallPlateDlg(CWnd* pParent = nullptr);	// 标准构造函数
+    int Array2Mat(BYTE* array, cv::Mat& img, int width, int height);
+    int Mat2CImage(cv::Mat* mat, CImage& img);
 
-	inline UINT64 GetCycleCount();
-	void GetCPUFrequency();
+    inline UINT64 GetCycleCount();
+    void GetCPUFrequency();
 
 
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
-	enum { IDD = IDD_BALLPLATE_DIALOG };
+    enum { IDD = IDD_BALLPLATE_DIALOG };
 #endif
 
-	protected:
-	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
+    protected:
+    virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
 
 
 // 实现
 protected:
-	HICON m_hIcon;
+    HICON m_hIcon;
 
-	// 生成的消息映射函数
-	virtual BOOL OnInitDialog();
-	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
-	afx_msg HCURSOR OnQueryDragIcon();
-	afx_msg void OnPaint();
-	DECLARE_MESSAGE_MAP()
+    // 生成的消息映射函数
+    virtual BOOL OnInitDialog();
+    afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
+    afx_msg HCURSOR OnQueryDragIcon();
+    afx_msg void OnPaint();
+    DECLARE_MESSAGE_MAP()
 public:
-	double m_CPUFrequency;
+    double m_CPUFrequency;
 
-	CString f_CamParams;
+    CString f_CamParams;
 
-	CStatic m_Image;			//图像显示控件
-	CMilVision m_MilVision;		//用于连接相机驱动板
-	CMyView m_MyView;			//暂无用处
-	MyCamera m_MyCamera;		//用于标定与坐标计算
-	MotionControl m_XCtrl;
-	MotionControl m_YCtrl;
+    CStatic m_Image;			//图像显示控件
+    CMilVision m_MilVision;		//用于连接相机驱动板
+    CMyView m_MyView;			//暂无用处
+    MyCamera m_MyCamera;		//用于标定与坐标计算
+    MotionControl m_XCtrl;
+    MotionControl m_YCtrl;
 
 
-	BYTE* m_array;				//测试用数组
-	cv::Mat mask;
-	cv::Mat img_raw;			//原始的图像
-	cv::Mat img_proc;			//处理的图像
-	cv::Mat img_disp;			//显示的图像
-	cv::Point2d m_BallPos;		//小球世界坐标
-
-public:
-	afx_msg void OnBnClickedButtonGrabImage();	//截图
-	afx_msg void OnBnClickedButtonCaliImage();	//标定
-	afx_msg void OnBnClickedButtonBallPos();
-	afx_msg void OnBnClickedButtonContinue();
-	afx_msg void OnBnClickedButtonContinuePosition();
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
+    BYTE* m_array;				//测试用数组
+    cv::Mat mask;
+    cv::Mat img_raw;			//原始的图像
+    cv::Mat img_proc;			//处理的图像
+    cv::Mat img_disp;			//显示的图像
+    cv::Point2d m_BallPos;		//小球世界坐标
 
 public:
-	CString m_BallXPosText;
-	CString m_BallYPosText;
-	CString m_TimeText;
-	CString m_XCtrlText;
-	CString m_YCtrlText;
+    afx_msg void OnBnClickedButtonGrabImage();	//截图
+    afx_msg void OnBnClickedButtonCaliImage();	//标定
+    afx_msg void OnBnClickedButtonBallPos();
+    afx_msg void OnBnClickedButtonContinue();
+    afx_msg void OnBnClickedButtonContinuePosition();
+    afx_msg void OnTimer(UINT_PTR nIDEvent);
+
+public:
+    CString m_BallXPosText;
+    CString m_BallYPosText;
+    CString m_TimeText;
+    CString m_XCtrlText;
+    CString m_YCtrlText;
 };
